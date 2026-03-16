@@ -1,0 +1,35 @@
+name = "jlw-loader-worker"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+# ── R2 bucket binding ─────────────────────────────────────────────────────
+# The Worker reads/writes manifests via this native binding.
+# Presigned URLs use the S3-compatible API (requires R2_ACCESS_KEY_ID and
+# R2_SECRET_ACCESS_KEY secrets).
+[[r2_buckets]]
+binding = "UPDATES_BUCKET"
+bucket_name = "jlw-loader-updates"
+
+# ── Non-secret vars ───────────────────────────────────────────────────────
+[vars]
+R2_BUCKET_NAME = "jlw-loader-updates"
+# CF_ACCOUNT_ID = "<your-cloudflare-account-id>"
+# ↑ Uncomment and fill in. Find this in the Cloudflare dashboard URL:
+#   dash.cloudflare.com/<account-id>/...
+
+# ── Secrets (set via CLI, never committed) ────────────────────────────────
+# Run each of these once before first deploy:
+#
+#   wrangler secret put ACCESS_CODES
+#   wrangler secret put ADMIN_CREDS
+#   wrangler secret put R2_ACCESS_KEY_ID
+#   wrangler secret put R2_SECRET_ACCESS_KEY
+#   wrangler secret put CF_ACCOUNT_ID
+#
+# See README.md for the JSON format of ACCESS_CODES and ADMIN_CREDS.
+
+# ── Custom domain (optional) ─────────────────────────────────────────────
+# Uncomment to serve on your own domain instead of *.workers.dev:
+# routes = [
+#   { pattern = "loader.jlwaviation.com/*", zone_name = "jlwaviation.com" }
+# ]
