@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JLW Loader — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── LOGIN SCREEN ──────────────────────────────────────────── -->
+  <div id="login-view" class="view">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="brand-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect x="2" y="14" width="28" height="4" rx="2" fill="currentColor" opacity="0.9"/>
+            <rect x="10" y="6" width="12" height="20" rx="2" fill="currentColor" opacity="0.5"/>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <h1>JLW Loader</h1>
+        <p class="brand-sub">Database Update Administration</p>
+      </div>
+      <form id="login-form" autocomplete="off">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" id="login-btn">
+          <span class="btn-text">Sign In</span>
+          <span class="btn-spinner" hidden></span>
+        </button>
+        <div id="login-error" class="error-msg" hidden></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+  <div id="dashboard-view" class="view" hidden>
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-brand">JLW Loader</span>
+        <span class="topbar-sep">/</span>
+        <span id="org-name" class="topbar-org"></span>
+      </div>
+      <button id="logout-btn" class="btn-ghost">Sign Out</button>
+    </header>
+
+    <main class="dashboard">
+      <!-- Current Package -->
+      <section class="card" id="current-pkg-card">
+        <div class="card-header">
+          <h2>Current Package</h2>
+          <span id="pkg-status" class="status-badge"></span>
+        </div>
+        <div id="pkg-details" class="pkg-grid">
+          <!-- Populated by JS -->
+        </div>
+        <div id="pkg-empty" class="pkg-empty" hidden>
+          <p>No update package uploaded yet.</p>
+          <p class="muted">Upload a package below to get started.</p>
+        </div>
+      </section>
+
+      <!-- Upload New Package -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Upload New Package</h2>
+        </div>
+        <form id="upload-form">
+          <div class="form-row">
+            <div class="field">
+              <label for="version">Version</label>
+              <input type="text" id="version" placeholder="2026-03" required>
+            </div>
+            <div class="field">
+              <label for="cycle-number">Cycle #</label>
+              <input type="number" id="cycle-number" placeholder="4" min="1" required>
+            </div>
+            <div class="field">
+              <label for="release-date">Release Date</label>
+              <input type="date" id="release-date" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="description">Description</label>
+            <input type="text" id="description" placeholder="Nav, approach plates, terrain, obstacles">
+          </div>
+
+          <!-- Drop Zone -->
+          <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+              <svg class="drop-icon" width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <path d="M20 6v20M12 18l8-8 8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 28v4a2 2 0 002 2h24a2 2 0 002-2v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="drop-text">Drop ZIP file here, or <span class="drop-link">browse</span></p>
+              <p class="drop-hint">Compressed update package (.zip)</p>
+            </div>
+            <input type="file" id="file-input" accept=".zip" hidden>
+          </div>
+
+          <!-- File Selected -->
+          <div id="file-info" class="file-info" hidden>
+            <div class="file-info-left">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="3" y="1" width="14" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <span id="file-name" class="file-name"></span>
+                <span id="file-size" class="file-size"></span>
+              </div>
+            </div>
+            <button type="button" id="file-remove" class="btn-icon" title="Remove file">&times;</button>
+          </div>
+
+          <!-- Upload Progress -->
+          <div id="upload-progress" class="upload-progress" hidden>
+            <div class="progress-header">
+              <span id="progress-label">Preparing...</span>
+              <span id="progress-pct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="progress-bar" class="progress-fill"></div>
+            </div>
+          </div>
+
+          <!-- Upload Result -->
+          <div id="upload-result" class="upload-result" hidden></div>
+
+          <button type="submit" id="upload-btn" class="btn-primary" disabled>
+            <span class="btn-text">Upload Package</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
