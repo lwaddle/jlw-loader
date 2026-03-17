@@ -56,12 +56,8 @@ export interface AdminCredEntry {
  */
 export interface ManifestData {
   orgId: string;
-  version: string;
-  releaseDate: string;
-  cycleNumber: number;
   packageFilename: string;
   packageSizeBytes: number;
   packageChecksum: string;
-  description: string;
   uploadedAt: string;
 }

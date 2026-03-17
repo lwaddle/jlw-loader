@@ -136,10 +136,6 @@ body {
   margin-top: 16px;
 }
 
-.form-row > .field + .field {
-  margin-top: 0;
-}
-
 label {
   font-size: 12px;
   font-weight: 500;
@@ -150,9 +146,7 @@ label {
 }
 
 input[type="text"],
-input[type="password"],
-input[type="number"],
-input[type="date"] {
+input[type="password"] {
   width: 100%;
   padding: 10px 14px;
   font-size: 15px;
@@ -172,23 +166,6 @@ input:focus {
 
 input::placeholder {
   color: var(--text-muted);
-}
-
-input[type="date"] {
-  font-family: var(--font-mono);
-  font-size: 14px;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6);
-  cursor: pointer;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 100px 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
 }
 
 /* ── BUTTONS ───────────────────────────────────────────────────── */
@@ -626,10 +603,6 @@ button[type="submit"]:disabled {
 
   .dashboard {
     padding: 20px 16px 48px;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
   }
 
   .pkg-grid {

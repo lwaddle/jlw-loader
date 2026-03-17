@@ -151,14 +151,10 @@ jlw-loader-updates/
 ```json
 {
   "orgId": "jlw-aviation",
-  "version": "2026-03",
-  "releaseDate": "2026-03-01",
-  "cycleNumber": 4,
   "packageFilename": "update-2026-03.zip",
   "packageSizeBytes": 187234816,
   "packageChecksum": "sha256:abc123...",
-  "description": "March 2026 — Nav, approach plates, terrain",
-  "uploadedAt": "2026-02-28T14:32:00Z"
+  "uploadedAt": "2026-03-17T16:30:00Z"
 }
 ```
 

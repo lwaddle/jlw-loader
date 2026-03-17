@@ -123,7 +123,7 @@ function renderManifest() {
     pkgDetails.removeChild(pkgDetails.firstChild);
   }
 
-  if (!m.version) {
+  if (!m.uploadedAt) {
     pkgDetails.hidden = true;
     pkgEmpty.hidden = false;
     pkgStatus.textContent = 'No Package';
@@ -141,17 +141,10 @@ function renderManifest() {
 
   // Build fields using safe DOM methods
   const fields = [
-    { label: 'Version',      value: m.version },
-    { label: 'Cycle',        value: '#' + (m.cycleNumber || '—') },
-    { label: 'Release Date', value: m.releaseDate || '—' },
-    { label: 'Uploaded',     value: uploadedDisplay },
-    { label: 'Package Size', value: sizeDisplay },
     { label: 'Filename',     value: m.packageFilename || '—', mono: true },
+    { label: 'Package Size', value: sizeDisplay },
+    { label: 'Uploaded',     value: uploadedDisplay },
   ];
-
-  if (m.description) {
-    fields.push({ label: 'Description', value: m.description, fullWidth: true });
-  }
   if (m.packageChecksum) {
     fields.push({ label: 'Checksum', value: m.packageChecksum, mono: true, fullWidth: true });
   }
@@ -222,15 +215,8 @@ function selectFile(file) {
 
 // ── FORM VALIDATION ───────────────────────────────────────────────
 
-['version', 'cycle-number', 'release-date'].forEach((id) => {
-  document.getElementById(id).addEventListener('input', validateUploadForm);
-});
-
 function validateUploadForm() {
-  const version     = document.getElementById('version').value.trim();
-  const cycleNumber = document.getElementById('cycle-number').value;
-  const releaseDate = document.getElementById('release-date').value;
-  uploadBtn.disabled = !(version && cycleNumber && releaseDate && selectedFile);
+  uploadBtn.disabled = !selectedFile;
 }
 
 // ── UPLOAD FLOW ───────────────────────────────────────────────────
@@ -245,12 +231,6 @@ uploadForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!selectedFile) return;
 
-  const version     = document.getElementById('version').value.trim();
-  const cycleNumber = parseInt(document.getElementById('cycle-number').value, 10);
-  const releaseDate = document.getElementById('release-date').value;
-  const description = document.getElementById('description').value.trim();
-  const filename    = 'update-' + version + '.zip';
-
   setLoading(uploadBtn, true);
   uploadBtn.disabled = true;
   uploadResult.hidden = true;
@@ -264,7 +244,7 @@ uploadForm.addEventListener('submit', async (e) => {
 
     // Step 2: Get presigned upload URL
     setProgress('uploading', 'Requesting upload URL...', 0);
-    const urlResp = await apiCall('POST', '/api/upload-url', { filename: filename });
+    const urlResp = await apiCall('POST', '/api/upload-url', { filename: selectedFile.name });
 
     // Step 3: Upload ZIP to R2
     setProgress('uploading', 'Uploading to R2...', 0);
@@ -274,20 +254,16 @@ uploadForm.addEventListener('submit', async (e) => {
     // Step 4: Update manifest
     setProgress('uploading', 'Updating manifest...', 100);
     await apiCall('PATCH', '/api/manifest', {
-      version: version,
-      releaseDate: releaseDate,
-      cycleNumber: cycleNumber,
-      packageFilename: filename,
+      packageFilename: selectedFile.name,
       packageSizeBytes: selectedFile.size,
       packageChecksum: 'sha256:' + checksum,
-      description: description || ('Cycle ' + cycleNumber + ' \u2014 ' + version),
       uploadedAt: new Date().toISOString(),
     });
 
     // Done — refresh manifest and show success
     currentManifest = await apiCall('GET', '/api/manifest');
     renderManifest();
-    showResult('success', 'Package ' + version + ' uploaded successfully.');
+    showResult('success', 'Package uploaded successfully.');
     resetUploadUI();
 
   } catch (err) {
