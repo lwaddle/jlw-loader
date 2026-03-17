@@ -23,15 +23,23 @@ import {
 import { createPresignedGetUrl, createPresignedPutUrl } from './presign';
 
 // ---------------------------------------------------------------------------
-// CORS — the web uploader runs on a different origin (Cloudflare Pages)
+// CORS — restrict to known origins only
 // ---------------------------------------------------------------------------
 
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
-  'Access-Control-Max-Age': '86400',
-};
+const ALLOWED_ORIGINS = new Set([
+  'https://loader.jlwav.com',
+  'http://localhost:8787',       // local dev
+]);
+
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : '',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+    'Access-Control-Max-Age': '86400',
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Response helpers
@@ -40,12 +48,25 @@ const CORS_HEADERS: Record<string, string> = {
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
 function errorResponse(message: string, status: number): Response {
   return json({ error: message }, status);
+}
+
+/** Add CORS headers to any response. */
+function withCors(response: Response, request: Request): Response {
+  const headers = new Headers(response.headers);
+  for (const [k, v] of Object.entries(corsHeaders(request))) {
+    headers.set(k, v);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -55,33 +76,36 @@ function errorResponse(message: string, status: number): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
     const { pathname } = new URL(request.url);
 
+    let response: Response;
     try {
       switch (pathname) {
         case '/api/auth':
-          if (request.method === 'POST') return handleAuth(request, env);
-          break;
+          if (request.method === 'POST') { response = await handleAuth(request, env); break; }
+          response = errorResponse('Not found', 404); break;
         case '/api/manifest':
-          if (request.method === 'GET') return handleGetManifest(request, env);
-          if (request.method === 'PATCH') return handlePatchManifest(request, env);
-          break;
+          if (request.method === 'GET') { response = await handleGetManifest(request, env); break; }
+          if (request.method === 'PATCH') { response = await handlePatchManifest(request, env); break; }
+          response = errorResponse('Not found', 404); break;
         case '/api/download':
-          if (request.method === 'POST') return handleDownload(request, env);
-          break;
+          if (request.method === 'POST') { response = await handleDownload(request, env); break; }
+          response = errorResponse('Not found', 404); break;
         case '/api/upload-url':
-          if (request.method === 'POST') return handleUploadUrl(request, env);
-          break;
+          if (request.method === 'POST') { response = await handleUploadUrl(request, env); break; }
+          response = errorResponse('Not found', 404); break;
+        default:
+          response = errorResponse('Not found', 404);
       }
-
-      return errorResponse('Not found', 404);
     } catch (err) {
       console.error('Unhandled error:', err);
-      return errorResponse('Internal server error', 500);
+      response = errorResponse('Internal server error', 500);
     }
+
+    return withCors(response, request);
   },
 };
 

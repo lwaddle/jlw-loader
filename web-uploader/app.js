@@ -45,7 +45,12 @@ const uploadResult  = document.getElementById('upload-result');
 // ── AUTH HELPERS ───────────────────────────────────────────────────
 
 function basicAuthHeader() {
-  return 'Basic ' + btoa(credentials.username + ':' + credentials.password);
+  var bytes = new TextEncoder().encode(credentials.username + ':' + credentials.password);
+  var binary = '';
+  for (var i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return 'Basic ' + btoa(binary);
 }
 
 async function apiCall(method, path, body) {

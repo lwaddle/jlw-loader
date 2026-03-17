@@ -47,7 +47,12 @@ export async function validateAdmin(
 ): Promise<{ orgId: string; username: string } | null> {
   if (!authHeader.startsWith('Basic ')) return null;
 
-  const decoded = atob(authHeader.slice(6));
+  let decoded: string;
+  try {
+    decoded = atob(authHeader.slice(6));
+  } catch {
+    return null; // malformed base64
+  }
   const colonIdx = decoded.indexOf(':');
   if (colonIdx === -1) return null;
 
