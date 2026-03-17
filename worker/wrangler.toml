@@ -28,8 +28,7 @@ R2_BUCKET_NAME = "jlw-loader-updates"
 #
 # See README.md for the JSON format of ACCESS_CODES and ADMIN_CREDS.
 
-# ── Custom domain (optional) ─────────────────────────────────────────────
-# Uncomment to serve on your own domain instead of *.workers.dev:
-# routes = [
-#   { pattern = "loader.jlwaviation.com/*", zone_name = "jlwaviation.com" }
-# ]
+# ── Custom domain ────────────────────────────────────────────────────────
+routes = [
+  { pattern = "loader.jlwav.com/api/*", zone_name = "jlwav.com" }
+]

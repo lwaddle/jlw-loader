@@ -11,9 +11,8 @@ const CONFIG = {
   // Local development:
   //   "http://localhost:8787"
   //
-  // Production (pick one):
-  //   "https://jlw-loader-worker.<your-subdomain>.workers.dev"
-  //   "https://loader.jlwaviation.com"
+  // Production (same-origin when Pages + Worker share a domain):
+  //   ""
   //
-  workerUrl: "http://localhost:8787",
+  workerUrl: "",
 };

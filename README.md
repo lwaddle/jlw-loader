@@ -72,11 +72,14 @@ See [`worker/README.md`](worker/README.md) for full setup, API reference, and ho
 cd web-uploader
 ```
 
-Edit `config.js` — set `workerUrl` to your deployed Worker URL:
+Edit `config.js` — set `workerUrl` for your deployment:
 
 ```js
 const CONFIG = {
-  workerUrl: "https://jlw-loader-worker.your-subdomain.workers.dev",
+  // Same-origin (Pages + Worker share loader.jlwav.com):
+  workerUrl: "",
+  // Or a separate Workers subdomain:
+  // workerUrl: "https://jlw-loader-worker.your-subdomain.workers.dev",
 };
 ```
 
