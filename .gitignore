@@ -5,3 +5,4 @@ dist/
 .DS_Store
 *.log
 EXAMPLE_DATA_LOAD/
+.claude/
