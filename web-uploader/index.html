@@ -56,6 +56,28 @@
         </div>
       </section>
 
+      <!-- Access Codes -->
+      <section class="card" id="access-codes-card">
+        <div class="card-header">
+          <h2>Access Codes</h2>
+          <span id="codes-count" class="status-badge empty">0</span>
+        </div>
+        <div id="codes-list">
+          <!-- Populated by JS -->
+        </div>
+        <div id="codes-empty" class="pkg-empty" hidden>
+          <p>No access codes yet.</p>
+          <p class="muted">Create a code to share with your pilots.</p>
+        </div>
+        <div class="codes-add">
+          <form id="add-code-form" class="add-code-form">
+            <input type="text" id="new-code-input" placeholder="e.g. JLW-7294" maxlength="20" required>
+            <button type="submit" class="btn-add-code">Add Code</button>
+          </form>
+          <div id="codes-error" class="error-msg" hidden></div>
+        </div>
+      </section>
+
       <!-- Upload New Package -->
       <section class="card">
         <div class="card-header">

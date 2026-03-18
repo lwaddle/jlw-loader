@@ -15,6 +15,7 @@ const API_BASE = CONFIG.workerUrl.replace(/\/+$/, ''); // strip trailing slash
 // ── STATE ─────────────────────────────────────────────────────────
 let currentManifest = null;
 let selectedFile = null;
+let accessCodes = [];
 
 // ── DOM REFS ──────────────────────────────────────────────────────
 const loginView     = document.getElementById('login-view');
@@ -37,6 +38,12 @@ const progressLabel = document.getElementById('progress-label');
 const progressPct   = document.getElementById('progress-pct');
 const progressBar   = document.getElementById('progress-bar');
 const uploadResult  = document.getElementById('upload-result');
+const codesList    = document.getElementById('codes-list');
+const codesCount   = document.getElementById('codes-count');
+const codesEmpty   = document.getElementById('codes-empty');
+const addCodeForm  = document.getElementById('add-code-form');
+const newCodeInput = document.getElementById('new-code-input');
+const codesError   = document.getElementById('codes-error');
 
 // ── CLERK INIT ────────────────────────────────────────────────────
 
@@ -92,6 +99,8 @@ async function loadDashboard() {
   try {
     const manifest = await apiCall('GET', '/api/manifest');
     currentManifest = manifest;
+    const codesResp = await apiCall('GET', '/api/access-codes');
+    accessCodes = codesResp.codes || [];
     showDashboard();
   } catch (err) {
     console.error('Failed to load manifest:', err);
@@ -146,6 +155,7 @@ function showDashboard() {
   loginView.hidden = true;
   dashboardView.hidden = false;
   renderManifest();
+  renderAccessCodes();
 }
 
 function renderManifest() {
@@ -199,6 +209,116 @@ function renderManifest() {
     div.appendChild(valueSpan);
     pkgDetails.appendChild(div);
   });
+}
+
+function renderAccessCodes() {
+  while (codesList.firstChild) {
+    codesList.removeChild(codesList.firstChild);
+  }
+
+  codesCount.textContent = accessCodes.length;
+  codesCount.className = 'status-badge ' + (accessCodes.length > 0 ? 'active' : 'empty');
+
+  if (accessCodes.length === 0) {
+    codesList.hidden = true;
+    codesEmpty.hidden = false;
+    return;
+  }
+
+  codesList.hidden = false;
+  codesEmpty.hidden = true;
+
+  accessCodes.forEach(function (item) {
+    var row = document.createElement('div');
+    row.className = 'code-row';
+
+    var info = document.createElement('div');
+    info.className = 'code-info';
+
+    var codeVal = document.createElement('span');
+    codeVal.className = 'code-value';
+    codeVal.textContent = item.accessCode;
+
+    var apiKeyVal = document.createElement('span');
+    apiKeyVal.className = 'code-apikey';
+    apiKeyVal.textContent = maskApiKey(item.apiKey);
+    apiKeyVal.title = 'Click to reveal';
+    apiKeyVal.addEventListener('click', function () {
+      if (apiKeyVal.textContent === item.apiKey) {
+        apiKeyVal.textContent = maskApiKey(item.apiKey);
+      } else {
+        apiKeyVal.textContent = item.apiKey;
+      }
+    });
+
+    info.appendChild(codeVal);
+    info.appendChild(apiKeyVal);
+
+    var actions = document.createElement('div');
+    actions.className = 'code-actions';
+
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-copy';
+    copyBtn.title = 'Copy access code';
+    copyBtn.textContent = '\u2398';
+    copyBtn.addEventListener('click', function () {
+      navigator.clipboard.writeText(item.accessCode).then(function () {
+        copyBtn.textContent = '\u2713';
+        setTimeout(function () { copyBtn.textContent = '\u2398'; }, 1500);
+      });
+    });
+
+    var deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-icon';
+    deleteBtn.title = 'Delete access code';
+    deleteBtn.textContent = '\u00D7';
+    deleteBtn.addEventListener('click', function () {
+      if (confirm('Delete access code "' + item.accessCode + '"? Pilots using this code will lose access.')) {
+        deleteCode(item.accessCode);
+      }
+    });
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(deleteBtn);
+
+    row.appendChild(info);
+    row.appendChild(actions);
+    codesList.appendChild(row);
+  });
+}
+
+function maskApiKey(key) {
+  if (key.length <= 8) return key;
+  return key.slice(0, 8) + '\u2026';
+}
+
+addCodeForm.addEventListener('submit', async function (e) {
+  e.preventDefault();
+  codesError.hidden = true;
+
+  var code = newCodeInput.value.trim().toUpperCase();
+  if (!code) return;
+
+  try {
+    var resp = await apiCall('POST', '/api/access-codes', { accessCode: code });
+    accessCodes.push({ accessCode: resp.accessCode, apiKey: resp.apiKey });
+    renderAccessCodes();
+    newCodeInput.value = '';
+  } catch (err) {
+    codesError.textContent = err.message;
+    codesError.hidden = false;
+  }
+});
+
+async function deleteCode(accessCode) {
+  try {
+    await apiCall('DELETE', '/api/access-codes', { accessCode: accessCode });
+    accessCodes = accessCodes.filter(function (c) { return c.accessCode !== accessCode; });
+    renderAccessCodes();
+  } catch (err) {
+    codesError.textContent = err.message;
+    codesError.hidden = false;
+  }
 }
 
 // ── FILE SELECTION ────────────────────────────────────────────────
