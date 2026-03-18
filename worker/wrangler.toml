@@ -1,6 +1,7 @@
 name = "jlw-loader-worker"
 main = "src/index.ts"
 compatibility_date = "2025-03-01"
+account_id = "6182b140e6cd521d94d1b6c5f3f243b8"
 
 # ── R2 bucket binding ─────────────────────────────────────────────────────
 # The Worker reads/writes manifests via this native binding.
