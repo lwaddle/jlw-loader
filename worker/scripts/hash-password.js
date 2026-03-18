@@ -22,7 +22,7 @@ if (!password) {
 }
 
 const salt = randomBytes(16).toString('hex');
-const hash = pbkdf2Sync(password, salt, 600_000, 32, 'sha256').toString('hex');
+const hash = pbkdf2Sync(password, salt, 100_000, 32, 'sha256').toString('hex');
 
 console.log(`\nPassword hash (copy this into ADMIN_CREDS):\n`);
 console.log(`  ${salt}:${hash}`);

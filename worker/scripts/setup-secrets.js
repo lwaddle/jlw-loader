@@ -18,7 +18,7 @@ const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
-  const hash = pbkdf2Sync(password, salt, 600_000, 32, 'sha256').toString('hex');
+  const hash = pbkdf2Sync(password, salt, 100_000, 32, 'sha256').toString('hex');
   return `${salt}:${hash}`;
 }
 
