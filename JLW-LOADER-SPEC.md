@@ -32,7 +32,7 @@ Avionics database updates (Rockwell Collins Pro Line 21 / DBU-5000) must be load
 | **Platform** | iPhone |
 | **Distribution** | App Store (public listing, access-code gated) |
 | **R2 Bucket** | `jlw-loader-updates` |
-| **Worker Route** | `loader.jlwaviation.com` or `*.workers.dev` subdomain |
+| **Worker Route** | `loader.jlwav.com` or `*.workers.dev` subdomain |
 
 ### Apple Developer Account
 An active Apple Developer Program membership ($99/year) is required under JLW Aviation before App Store or TestFlight distribution. The bundle ID `com.jlwaviation.loader` must be registered in App Store Connect and cannot be changed after submission.
@@ -220,14 +220,11 @@ A single-page web app hosted on Cloudflare Pages. Each admin logs in with their 
 │  JLW Aviation                       │
 │─────────────────────────────────────│
 │  Current Package                    │
-│  Version: February 2026             │
+│  Filename: update-2026-03.zip       │
 │  Uploaded: 28 days ago              │
 │  Size: 187 MB compressed            │
 │─────────────────────────────────────│
 │  Upload New Package                 │
-│                                     │
-│  Cycle:  [March 2026        ▼]      │
-│  Notes:  [Nav, approach, terrain  ] │
 │                                     │
 │  [ Drop ZIP file here, or click ]   │
 │                                     │
@@ -237,12 +234,12 @@ A single-page web app hosted on Cloudflare Pages. Each admin logs in with their 
 
 ### 6.4 Upload Sequence
 
-1. Admin logs in — Worker validates credentials and returns a scoped session token
-2. Admin fills in cycle info and selects ZIP file
+1. Admin logs in — Worker validates credentials
+2. Admin drops ZIP file and clicks Upload
 3. Browser calls Worker `/api/upload-url` to get a pre-signed R2 PUT URL
 4. Browser uploads ZIP directly to R2 using the pre-signed URL (large file bypasses the Worker entirely — efficient, no timeout risk)
 5. Browser calls Worker `/api/manifest` PATCH to update manifest.json
-6. UI confirms success and displays new version info
+6. UI confirms success and displays updated package info
 
 ### 6.5 Pre-Upload Validation (Optional v1 Enhancement)
 
@@ -296,12 +293,9 @@ The app has one primary screen. It adapts based on current state:
 │                                     │
 │  🟢 New Update Available            │
 │                                     │
-│  March 2026 Cycle                   │
-│  Released March 1, 2026             │
+│  update-2026-03.zip                 │
+│  Uploaded March 1, 2026             │
 │  187 MB download                    │
-│                                     │
-│  Nav data · Approach plates         │
-│  Terrain · Obstacles                │
 │                                     │
 │  [      Download Update      ]      │
 │                                     │

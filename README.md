@@ -100,8 +100,7 @@ No build step — Pages serves the static files directly.
 
 1. Open the web uploader URL in a browser
 2. Log in with the admin credentials you created during setup
-3. Fill in the version, cycle number, and release date
-4. Drop your update ZIP file and click Upload
+3. Drop your update ZIP file and click Upload
 
 ### 4. iOS App (Coming Later)
 

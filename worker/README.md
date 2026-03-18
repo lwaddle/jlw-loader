@@ -54,7 +54,7 @@ The access code is human-friendly and shared with all pilots in an org. The API 
 3. Worker validates the password hash and maps the admin to their `orgId`
 4. All responses are scoped to the admin's org
 
-Passwords are stored as salted SHA-256 hashes, not plaintext.
+Passwords are stored as salted PBKDF2-SHA-256 hashes (100,000 iterations), not plaintext.
 
 ## Secrets & Environment Variables
 
@@ -356,7 +356,7 @@ Each org is fully isolated. The Worker enforces this at the auth layer — a pil
 
 ## Security Notes
 
-- **Passwords are salted + hashed** — SHA-256 with a random 16-byte salt. Plaintext passwords are never stored.
+- **Passwords are salted + hashed** — PBKDF2-SHA-256 with 100,000 iterations and a random 16-byte salt. Plaintext passwords are never stored.
 - **API key lookups use constant-time comparison** — prevents timing attacks.
 - **Admin orgId is server-enforced** — the manifest PATCH endpoint overwrites any client-supplied orgId with the admin's actual org. An admin cannot write to another org's path.
 - **Filename validation** — upload filenames are checked for path traversal characters.
