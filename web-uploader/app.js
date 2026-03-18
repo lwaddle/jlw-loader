@@ -292,8 +292,7 @@ function maskApiKey(key) {
   return key.slice(0, 8) + '\u2026';
 }
 
-addCodeForm.addEventListener('submit', async function (e) {
-  e.preventDefault();
+document.getElementById('add-code-btn').addEventListener('click', async function () {
   codesError.hidden = true;
 
   var code = newCodeInput.value.trim().toUpperCase();
