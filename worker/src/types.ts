@@ -2,7 +2,6 @@
  * Cloudflare Worker environment bindings.
  *
  * Secrets (set via `wrangler secret put <NAME>`):
- *   ACCESS_CODES         – JSON mapping friendly access codes to { orgId, apiKey }
  *   R2_ACCESS_KEY_ID     – R2 S3-compatible API access key
  *   R2_SECRET_ACCESS_KEY – R2 S3-compatible API secret key
  *
@@ -11,13 +10,18 @@
  *   R2_BUCKET_NAME   – R2 bucket name
  *   CLERK_ISSUER     – Clerk JWT issuer URL
  *   CLERK_JWKS_URL   – Clerk JWKS endpoint URL
+ *
+ * KV Namespaces:
+ *   ACCESS_CODES_KV  – Pilot access codes and API keys
  */
 export interface Env {
   // R2 binding (native, for direct reads/writes)
   UPDATES_BUCKET: R2Bucket;
 
+  // KV namespace
+  ACCESS_CODES_KV: KVNamespace;
+
   // Secrets
-  ACCESS_CODES: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
 
@@ -29,11 +33,7 @@ export interface Env {
 }
 
 /**
- * ACCESS_CODES JSON schema:
- * {
- *   "JLW-7294": { "orgId": "jlw-aviation", "apiKey": "key_a1b2c3d4..." },
- *   "OTH-5531": { "orgId": "other-org",    "apiKey": "key_x9y8z7w6..." }
- * }
+ * Value stored in KV at key `code:<accessCode>`.
  */
 export interface AccessCodeEntry {
   orgId: string;

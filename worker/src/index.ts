@@ -7,6 +7,7 @@
  *   - Download: presigned R2 URLs for the iOS app
  *   - Upload: presigned R2 URLs for the web uploader
  *   - Manifest update: admin writes new manifest after upload
+ *   - Access code management: admin CRUD for pilot access codes
  *
  * All endpoints are scoped to an organization via auth credentials.
  * See README.md for setup and deployment instructions.
@@ -14,9 +15,11 @@
 
 import { Env } from './types';
 import {
-  parseAccessCodes,
   findByAccessCode,
   findOrgByApiKey,
+  listAccessCodes,
+  createAccessCode,
+  deleteAccessCode,
 } from './auth';
 import { verifyClerkToken } from './clerk';
 import { createPresignedGetUrl, createPresignedPutUrl } from './presign';
@@ -34,7 +37,7 @@ function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : '',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
     'Access-Control-Max-Age': '86400',
   };
@@ -96,6 +99,11 @@ export default {
         case '/api/upload-url':
           if (request.method === 'POST') { response = await handleUploadUrl(request, env); break; }
           response = errorResponse('Not found', 404); break;
+        case '/api/access-codes':
+          if (request.method === 'GET') { response = await handleListAccessCodes(request, env); break; }
+          if (request.method === 'POST') { response = await handleCreateAccessCode(request, env); break; }
+          if (request.method === 'DELETE') { response = await handleDeleteAccessCode(request, env); break; }
+          response = errorResponse('Not found', 404); break;
         default:
           response = errorResponse('Not found', 404);
       }
@@ -124,8 +132,7 @@ async function handleAuth(request: Request, env: Env): Promise<Response> {
     return errorResponse('Access code is required', 400);
   }
 
-  const codes = parseAccessCodes(env.ACCESS_CODES);
-  const entry = findByAccessCode(codes, body.accessCode.trim());
+  const entry = await findByAccessCode(env.ACCESS_CODES_KV, body.accessCode.trim());
 
   if (!entry) {
     return errorResponse(
@@ -174,8 +181,7 @@ async function handleDownload(request: Request, env: Env): Promise<Response> {
     return errorResponse('Unauthorized', 401);
   }
 
-  const codes = parseAccessCodes(env.ACCESS_CODES);
-  const orgId = findOrgByApiKey(codes, apiKey);
+  const orgId = await findOrgByApiKey(env.ACCESS_CODES_KV, apiKey);
   if (!orgId) {
     return errorResponse('Unauthorized', 401);
   }
@@ -273,20 +279,113 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/access-codes — list access codes for admin's org
+// ---------------------------------------------------------------------------
+
+async function handleListAccessCodes(request: Request, env: Env): Promise<Response> {
+  const admin = await authenticateAdmin(request, env);
+  if (!admin) {
+    return errorResponse('Unauthorized', 401);
+  }
+
+  const codeNames = await listAccessCodes(env.ACCESS_CODES_KV, admin.orgId);
+  const codes = [];
+  for (const code of codeNames) {
+    const entry = await findByAccessCode(env.ACCESS_CODES_KV, code);
+    if (entry) {
+      codes.push({ accessCode: code, apiKey: entry.apiKey });
+    }
+  }
+
+  return json({ codes });
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/access-codes — create a new access code for admin's org
+//
+// Body: { "accessCode": "JLW-1234" }
+// ---------------------------------------------------------------------------
+
+async function handleCreateAccessCode(request: Request, env: Env): Promise<Response> {
+  const admin = await authenticateAdmin(request, env);
+  if (!admin) {
+    return errorResponse('Unauthorized', 401);
+  }
+
+  let body: { accessCode?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse('Invalid JSON body', 400);
+  }
+
+  const accessCode = body.accessCode?.trim();
+  if (!accessCode) {
+    return errorResponse('accessCode is required', 400);
+  }
+  if (accessCode.length > 20) {
+    return errorResponse('accessCode must be 20 characters or less', 400);
+  }
+
+  try {
+    const apiKey = await createAccessCode(env.ACCESS_CODES_KV, admin.orgId, accessCode);
+    return json({ accessCode, apiKey }, 201);
+  } catch (err) {
+    if (err instanceof Error && err.message === 'ACCESS_CODE_EXISTS') {
+      return errorResponse('Access code already exists', 409);
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/access-codes — delete an access code from admin's org
+//
+// Body: { "accessCode": "JLW-1234" }
+// ---------------------------------------------------------------------------
+
+async function handleDeleteAccessCode(request: Request, env: Env): Promise<Response> {
+  const admin = await authenticateAdmin(request, env);
+  if (!admin) {
+    return errorResponse('Unauthorized', 401);
+  }
+
+  let body: { accessCode?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse('Invalid JSON body', 400);
+  }
+
+  if (!body.accessCode) {
+    return errorResponse('accessCode is required', 400);
+  }
+
+  try {
+    await deleteAccessCode(env.ACCESS_CODES_KV, admin.orgId, body.accessCode);
+    return json({ success: true });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'ACCESS_CODE_NOT_FOUND') {
+      return errorResponse('Access code not found', 404);
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Auth helpers
 // ---------------------------------------------------------------------------
 
 /**
  * Resolve orgId from either auth method:
- *   1. X-API-Key header (pilot) — looked up in ACCESS_CODES
+ *   1. X-API-Key header (pilot) — looked up in ACCESS_CODES_KV
  *   2. Authorization: Bearer header (admin) — Clerk JWT verified
  */
 async function resolveOrgId(request: Request, env: Env): Promise<string | null> {
   // Pilot auth
   const apiKey = request.headers.get('X-API-Key');
   if (apiKey) {
-    const codes = parseAccessCodes(env.ACCESS_CODES);
-    return findOrgByApiKey(codes, apiKey);
+    return findOrgByApiKey(env.ACCESS_CODES_KV, apiKey);
   }
 
   // Admin auth
