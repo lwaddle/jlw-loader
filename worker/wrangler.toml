@@ -11,6 +11,11 @@ account_id = "6182b140e6cd521d94d1b6c5f3f243b8"
 binding = "UPDATES_BUCKET"
 bucket_name = "jlw-loader-updates"
 
+# ── KV namespace binding ─────────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "ACCESS_CODES_KV"
+id = "1fbc1cac7d0348acb6c39ac4fb13b9f5"
+
 # ── Non-secret vars ───────────────────────────────────────────────────────
 [vars]
 R2_BUCKET_NAME = "jlw-loader-updates"
@@ -21,12 +26,9 @@ CF_ACCOUNT_ID = "6182b140e6cd521d94d1b6c5f3f243b8"
 # ── Secrets (set via CLI, never committed) ────────────────────────────────
 # Run each of these once before first deploy:
 #
-#   wrangler secret put ACCESS_CODES
 #   wrangler secret put R2_ACCESS_KEY_ID
 #   wrangler secret put R2_SECRET_ACCESS_KEY
 #   wrangler secret put CF_ACCOUNT_ID
-#
-# See README.md for the JSON format of ACCESS_CODES.
 
 # ── Custom domain ────────────────────────────────────────────────────────
 routes = [
