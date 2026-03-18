@@ -10,7 +10,7 @@
  * `wrangler secret put` commands you need to run.
  */
 
-const { createHash, randomBytes } = require('crypto');
+const { pbkdf2Sync, randomBytes } = require('crypto');
 const readline = require('readline');
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -18,7 +18,7 @@ const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 
 function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
-  const hash = createHash('sha256').update(salt + password).digest('hex');
+  const hash = pbkdf2Sync(password, salt, 600_000, 32, 'sha256').toString('hex');
   return `${salt}:${hash}`;
 }
 

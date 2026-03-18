@@ -78,10 +78,26 @@ export async function validateAdmin(
 // Crypto helpers
 // ---------------------------------------------------------------------------
 
-/** SHA-256 hash of (salt + password), returned as lowercase hex. */
+/** PBKDF2-SHA-256 hash of password with salt, returned as lowercase hex. */
 export async function hashPassword(password: string, salt: string): Promise<string> {
-  const data = new TextEncoder().encode(salt + password);
-  const buf = await crypto.subtle.digest('SHA-256', data);
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const buf = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(salt),
+      iterations: 600_000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    256,
+  );
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
