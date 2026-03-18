@@ -27,13 +27,25 @@ export async function verifyClerkToken(
     });
 
     const sub = payload.sub;
-    const orgSlug =
-      (payload as Record<string, unknown>).org_slug as string | undefined;
+    const p = payload as Record<string, unknown>;
 
-    if (!sub || !orgSlug) return null;
+    // Clerk v5 uses abbreviated claims: "o" contains { id, slg, rol, per }
+    // Older tokens may use "org_slug" directly.
+    let orgSlug: string | undefined;
+    if (p.org_slug) {
+      orgSlug = p.org_slug as string;
+    } else if (p.o && typeof p.o === 'object') {
+      orgSlug = (p.o as Record<string, unknown>).slg as string | undefined;
+    }
+
+    if (!sub || !orgSlug) {
+      console.error('Clerk JWT missing required claims', { sub, orgSlug, o: p.o, keys: Object.keys(payload) });
+      return null;
+    }
 
     return { sub, org_slug: orgSlug };
-  } catch {
+  } catch (err) {
+    console.error('Clerk JWT verification failed:', err);
     return null;
   }
 }

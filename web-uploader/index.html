@@ -113,8 +113,16 @@
     </main>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
   <script src="config.js"></script>
+  <script>
+    // Dynamically load Clerk SDK with the publishable key from config
+    const clerkScript = document.createElement('script');
+    clerkScript.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+    clerkScript.setAttribute('data-clerk-publishable-key', CONFIG.clerkPublishableKey);
+    clerkScript.async = true;
+    clerkScript.onload = function() { initClerk(); };
+    document.body.appendChild(clerkScript);
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

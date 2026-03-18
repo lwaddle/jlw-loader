@@ -42,15 +42,42 @@ const uploadResult  = document.getElementById('upload-result');
 
 let clerk = null;
 
+let clerkReady = false;
+
 async function initClerk() {
-  clerk = new window.Clerk(CONFIG.clerkPublishableKey);
+  // When loaded with data-clerk-publishable-key, window.Clerk is the
+  // auto-initialized instance (not a constructor). Wait for it to be ready.
+  clerk = window.Clerk;
   await clerk.load();
 
-  if (clerk.user) {
-    await onSignedIn();
-  } else {
+  clerk.addListener(handleClerkState);
+  handleClerkState();
+}
+
+async function handleClerkState() {
+  if (!clerk.user) {
+    clerkReady = false;
     showSignIn();
+    return;
   }
+
+  // Avoid re-entry — setActive triggers another listener call
+  if (clerkReady) return;
+
+  // Ensure the user has an active organization set — Clerk only includes
+  // org_id/org_slug in the JWT when an organization is active.
+  const memberships = clerk.user.organizationMemberships;
+  if (memberships && memberships.length > 0 && !clerk.organization) {
+    await clerk.setActive({
+      organization: memberships[0].organization.id,
+    });
+    // setActive triggers the listener again — exit here, the next call
+    // will have clerk.organization set and proceed to loadDashboard.
+    return;
+  }
+
+  clerkReady = true;
+  await loadDashboard();
 }
 
 function showSignIn() {
@@ -59,7 +86,7 @@ function showSignIn() {
   clerk.mountSignIn(document.getElementById('clerk-sign-in'));
 }
 
-async function onSignedIn() {
+async function loadDashboard() {
   clerk.unmountSignIn(document.getElementById('clerk-sign-in'));
 
   try {
@@ -67,9 +94,12 @@ async function onSignedIn() {
     currentManifest = manifest;
     showDashboard();
   } catch (err) {
-    console.error('Failed to load manifest after sign-in:', err);
-    await clerk.signOut();
-    showSignIn();
+    console.error('Failed to load manifest:', err);
+    // Show error instead of signing out to avoid loops
+    loginView.hidden = false;
+    dashboardView.hidden = true;
+    var el = document.getElementById('clerk-sign-in');
+    el.textContent = 'Failed to load dashboard: ' + err.message;
   }
 }
 
@@ -413,5 +443,4 @@ function formatRelativeDate(iso) {
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────
-
-initClerk();
+// initClerk() is called from index.html after the Clerk SDK loads.
