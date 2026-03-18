@@ -155,7 +155,6 @@ logoutBtn.addEventListener('click', async () => {
   signInMounted = false;
   uploadForm.reset();
   resetUploadUI();
-  clerk.unmountSignIn(document.getElementById('clerk-sign-in'));
   await clerk.signOut();
 });
 
