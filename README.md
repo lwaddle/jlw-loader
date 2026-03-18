@@ -14,7 +14,7 @@ Avionics database update distribution system for JLW Aviation. Pilots receive Ro
  │ (static site)│                    │  (SwiftUI)   │
  └──────┬───────┘                    └──────┬───────┘
         │                                   │
-        │  Basic auth                       │  API key
+        │  Clerk JWT                        │  API key
         ▼                                   ▼
  ┌─────────────────────────────────────────────────┐
  │              Cloudflare Worker                  │
@@ -58,51 +58,56 @@ jlw-loader/
 ```sh
 cd worker
 npm install
-node scripts/setup-secrets.js   # interactive credential setup
 wrangler r2 bucket create jlw-loader-updates
-# set secrets as prompted by setup script
+wrangler kv namespace create ACCESS_CODES_KV
+# Add the KV namespace ID to wrangler.toml
+wrangler secret put R2_ACCESS_KEY_ID
+wrangler secret put R2_SECRET_ACCESS_KEY
 npm run deploy
 ```
 
 See [`worker/README.md`](worker/README.md) for full setup, API reference, and how to add new organizations.
 
-### 2. Deploy the Web Uploader
+### 2. Set up Clerk
+
+1. Create a Clerk app at [clerk.com](https://clerk.com)
+2. Create an organization with a slug matching your orgId (e.g., `jlw-aviation`)
+3. Invite admin users to the organization
+4. Update `CLERK_ISSUER` and `CLERK_JWKS_URL` in `worker/wrangler.toml`
+5. Update `clerkPublishableKey` in `web-uploader/config.js`
+
+### 3. Deploy the Web Uploader
 
 ```sh
 cd web-uploader
 ```
 
-Edit `config.js` — set `workerUrl` for your deployment:
+Edit `config.js` — set `workerUrl` and `clerkPublishableKey`:
 
 ```js
 const CONFIG = {
   // Same-origin (Pages + Worker share loader.jlwav.com):
   workerUrl: "",
-  // Or a separate Workers subdomain:
-  // workerUrl: "https://jlw-loader-worker.your-subdomain.workers.dev",
+  clerkPublishableKey: "pk_live_xxxx",
 };
 ```
 
 Then deploy to Cloudflare Pages:
 
 ```sh
-# Option A: Wrangler CLI
 npx wrangler pages deploy . --project-name=jlw-loader-admin
-
-# Option B: Connect a Git repo in the Cloudflare dashboard
-#   Build command: (none)
-#   Output directory: web-uploader
 ```
 
 No build step — Pages serves the static files directly.
 
-### 3. Upload Your First Package
+### 4. Upload Your First Package
 
 1. Open the web uploader URL in a browser
-2. Log in with the admin credentials you created during setup
-3. Drop your update ZIP file and click Upload
+2. Sign in with your Clerk account
+3. Create a pilot access code in the Access Codes section
+4. Drop your update ZIP file and click Upload
 
-### 4. iOS App (Coming Later)
+### 5. iOS App (Coming Later)
 
 The iOS app is Phase 2. When built, pilots will:
 1. Enter their access code once on first launch
@@ -112,7 +117,7 @@ The iOS app is Phase 2. When built, pilots will:
 
 ## Multi-Tenancy
 
-Each organization gets its own isolated space — separate access code, admin credentials, and R2 storage path. Adding a new org takes ~5 minutes and requires no code changes. See the [Worker README](worker/README.md#adding-a-new-organization) for the step-by-step process.
+Each organization gets its own isolated space — separate access codes, Clerk organization, and R2 storage path. Adding a new org requires creating a Clerk organization and managing access codes through the admin dashboard. See the [Worker README](worker/README.md#adding-a-new-organization) for details.
 
 ## USB Drive File Structure
 

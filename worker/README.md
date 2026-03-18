@@ -7,29 +7,30 @@ API gatekeeper for the JLW Loader system. Validates pilot access codes and admin
 ```
 iOS App (pilot)              Web Uploader (admin)
      │                              │
-     │  X-API-Key                   │  Basic Auth
+     │  X-API-Key                   │  Clerk JWT
      ▼                              ▼
 ┌─────────────────────────────────────────────┐
 │            Cloudflare Worker                │
 │                                             │
-│  /api/auth       - access code → API key    │
-│  /api/manifest   - current update manifest  │
-│  /api/download   - presigned download URL   │
-│  /api/upload-url - presigned upload URL     │
-│  /api/manifest   - update manifest (PATCH)  │
+│  /api/auth         - access code → API key  │
+│  /api/manifest     - current update manifest│
+│  /api/download     - presigned download URL │
+│  /api/upload-url   - presigned upload URL   │
+│  /api/manifest     - update manifest (PATCH)│
+│  /api/access-codes - manage access codes    │
 └──────────────────┬──────────────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────────────┐
-│            Cloudflare R2                    │
+│            Cloudflare R2 + KV               │
 │                                             │
-│  jlw-loader-updates/                        │
-│    orgs/jlw-aviation/                       │
-│      manifest.json                          │
-│      update-2026-03.zip                     │
-│    orgs/other-org/                          │
-│      manifest.json                          │
-│      update-2026-03.zip                     │
+│  R2: jlw-loader-updates/                    │
+│    orgs/jlw-aviation/manifest.json          │
+│    orgs/jlw-aviation/update-2026-03.zip     │
+│                                             │
+│  KV: ACCESS_CODES_KV                        │
+│    code:JLW-7294 → { orgId, apiKey }        │
+│    org:jlw-aviation:codes → ["JLW-7294"]    │
 └─────────────────────────────────────────────┘
 ```
 
@@ -45,66 +46,53 @@ There are two separate auth flows — one for pilots, one for admins.
 4. All subsequent requests include `X-API-Key: <key>` header
 5. Worker maps the API key back to an `orgId` and scopes all responses
 
-The access code is human-friendly and shared with all pilots in an org. The API key is a long random string used for machine-to-machine auth.
+The access code is human-friendly and shared with all pilots in an org. The API key is a long random string used for machine-to-machine auth. Access codes are managed via the admin dashboard.
 
 ### Admin Auth (Web Uploader)
 
-1. Admin enters **username + password** in the web uploader
-2. Web uploader sends `Authorization: Basic <base64(user:pass)>` with each request
-3. Worker validates the password hash and maps the admin to their `orgId`
-4. All responses are scoped to the admin's org
+1. Admin signs in via **Clerk** (email/password or SSO)
+2. Web uploader includes `Authorization: Bearer <clerk_jwt>` with each request
+3. Worker verifies the JWT via Clerk's JWKS endpoint and reads the `org_slug` claim
+4. All responses are scoped to the admin's Clerk organization
 
-Passwords are stored as salted PBKDF2-SHA-256 hashes (100,000 iterations), not plaintext.
+Admin accounts are managed in Clerk. Each Clerk organization's slug must match the orgId used in R2 paths and access codes.
 
-## Secrets & Environment Variables
+## Environment Variables & Bindings
 
 ### Non-secret vars (in wrangler.toml)
 
 | Variable | Description | Example |
 |---|---|---|
 | `R2_BUCKET_NAME` | R2 bucket name | `jlw-loader-updates` |
+| `CLERK_ISSUER` | Clerk Frontend API URL (JWT issuer) | `https://clerk.loader.jlwav.com` |
+| `CLERK_JWKS_URL` | Clerk JWKS endpoint | `https://clerk.loader.jlwav.com/.well-known/jwks.json` |
+| `CF_ACCOUNT_ID` | Cloudflare account ID | `6182b140...` |
+
+### Bindings (in wrangler.toml)
+
+| Binding | Type | Description |
+|---|---|---|
+| `UPDATES_BUCKET` | R2 Bucket | Stores manifests and update ZIPs |
+| `ACCESS_CODES_KV` | KV Namespace | Stores pilot access codes and API keys |
 
 ### Secrets (set via `wrangler secret put`)
 
 | Secret | Description |
 |---|---|
-| `CF_ACCOUNT_ID` | Cloudflare account ID (from dashboard URL) |
-| `ACCESS_CODES` | JSON mapping access codes → `{ orgId, apiKey }` |
-| `ADMIN_CREDS` | JSON mapping admin usernames → `{ passwordHash, orgId }` |
 | `R2_ACCESS_KEY_ID` | R2 S3-compatible API access key ID |
 | `R2_SECRET_ACCESS_KEY` | R2 S3-compatible API secret access key |
 
-### ACCESS_CODES format
+### KV Data Model
 
-```json
-{
-  "JLW-7294": {
-    "orgId": "jlw-aviation",
-    "apiKey": "key_a1b2c3d4e5f6..."
-  },
-  "OTH-5531": {
-    "orgId": "other-org",
-    "apiKey": "key_x9y8z7w6v5u4..."
-  }
-}
-```
+Access codes are stored in the `ACCESS_CODES_KV` namespace with two key patterns:
 
-### ADMIN_CREDS format
+**Code lookup** — used by pilot auth:
+- Key: `code:<accessCode>` (e.g., `code:JLW-7294`)
+- Value: `{ "orgId": "jlw-aviation", "apiKey": "key_a1b2c3..." }`
 
-```json
-{
-  "loren": {
-    "passwordHash": "a1b2c3d4...:e5f6a7b8...",
-    "orgId": "jlw-aviation"
-  }
-}
-```
-
-The `passwordHash` is `<salt>:<sha256hex>`. Generate it with:
-
-```sh
-npm run hash-password -- "your-password-here"
-```
+**Org index** — used to list codes in the admin UI:
+- Key: `org:<orgId>:codes` (e.g., `org:jlw-aviation:codes`)
+- Value: `["JLW-7294", "JLW-8812"]`
 
 ## Quick Start
 
@@ -112,6 +100,7 @@ npm run hash-password -- "your-password-here"
 
 - Node.js 18+
 - A Cloudflare account
+- A Clerk account with Organizations enabled
 - An R2 bucket named `jlw-loader-updates`
 - An R2 API token (for presigned URLs)
 
@@ -136,37 +125,27 @@ Go to: **Cloudflare Dashboard → R2 → Manage R2 API Tokens → Create API Tok
 - Scope: `jlw-loader-updates` bucket only
 - Save the Access Key ID and Secret Access Key
 
-### 4. Generate credentials
-
-The interactive setup script walks you through everything:
+### 4. Create the KV namespace
 
 ```sh
-node scripts/setup-secrets.js
+wrangler kv namespace create ACCESS_CODES_KV
 ```
 
-Or generate individually:
+Copy the namespace ID from the output and add it to `wrangler.toml`.
+
+### 5. Set up Clerk
+
+1. Create a Clerk app at [clerk.com](https://clerk.com)
+2. Enable Organizations
+3. Create an organization with slug matching your orgId (e.g., `jlw-aviation`)
+4. Update `CLERK_ISSUER` and `CLERK_JWKS_URL` in `wrangler.toml` with your Clerk Frontend API URL
+
+### 6. Set secrets
 
 ```sh
-# Generate an API key for a new org's ACCESS_CODES entry
-npm run generate-api-key
-
-# Hash a password for a new admin's ADMIN_CREDS entry
-npm run hash-password -- "the-admin-password"
-```
-
-### 5. Set secrets
-
-```sh
-wrangler secret put CF_ACCOUNT_ID
-wrangler secret put ACCESS_CODES
-wrangler secret put ADMIN_CREDS
 wrangler secret put R2_ACCESS_KEY_ID
 wrangler secret put R2_SECRET_ACCESS_KEY
 ```
-
-### 6. Set your account ID
-
-Edit `wrangler.toml` and uncomment the `CF_ACCOUNT_ID` line, or set it as a secret (step 5 covers this).
 
 ### 7. Deploy
 
@@ -174,7 +153,11 @@ Edit `wrangler.toml` and uncomment the `CF_ACCOUNT_ID` line, or set it as a secr
 npm run deploy
 ```
 
-### 8. Local development
+### 8. Create access codes
+
+Sign in to the web uploader and use the Access Codes section to create codes for your pilots.
+
+### 9. Local development
 
 ```sh
 npm run dev
@@ -184,49 +167,11 @@ This starts a local dev server. For local R2 access, Wrangler uses a local emula
 
 ## Adding a New Organization
 
-**Total time: ~5 minutes. No code changes. No redeployment.**
-
-1. **Pick an org ID** — lowercase, hyphenated (e.g. `acme-air`)
-
-2. **Pick a friendly access code** — something easy to communicate verbally (e.g. `ACM-4419`)
-
-3. **Generate an API key:**
-   ```sh
-   npm run generate-api-key
-   ```
-
-4. **Generate admin password hash:**
-   ```sh
-   npm run hash-password -- "the-admin-password"
-   ```
-
-5. **Update the ACCESS_CODES secret** — add the new entry to the JSON:
-   ```json
-   {
-     "existing entries...": "...",
-     "ACM-4419": { "orgId": "acme-air", "apiKey": "key_<generated>" }
-   }
-   ```
-   ```sh
-   wrangler secret put ACCESS_CODES
-   # Paste the full updated JSON
-   ```
-
-6. **Update the ADMIN_CREDS secret** — add the new admin:
-   ```json
-   {
-     "existing entries...": "...",
-     "acme-admin": { "passwordHash": "<generated>", "orgId": "acme-air" }
-   }
-   ```
-   ```sh
-   wrangler secret put ADMIN_CREDS
-   # Paste the full updated JSON
-   ```
-
-7. **Send credentials out of band:**
-   - Pilots get the access code (`ACM-4419`)
-   - Admin gets their username + password
+1. **Create a Clerk organization** with a slug matching the desired orgId (e.g., `acme-air`)
+2. **Invite admin users** to the organization in Clerk
+3. **Sign in** to the web uploader — the admin will see the new org's dashboard
+4. **Create access codes** via the Access Codes section in the dashboard
+5. **Send access codes** to pilots out of band (text, email, etc.)
 
 The org's R2 path (`orgs/acme-air/`) is created automatically on first upload.
 
@@ -257,7 +202,7 @@ Exchange an access code for an API key. Called once on first app launch.
 
 Get the current update manifest for the caller's org.
 
-**Auth:** `X-API-Key` header (pilot) or `Authorization: Basic` (admin)
+**Auth:** `X-API-Key` header (pilot) or `Authorization: Bearer` (admin)
 
 **Response (200):**
 ```json
@@ -298,7 +243,7 @@ Get a presigned URL to download the current update ZIP.
 
 Get a presigned URL to upload a new update ZIP directly to R2.
 
-**Auth:** `Authorization: Basic`
+**Auth:** `Authorization: Bearer` (Clerk JWT)
 
 **Request:**
 ```json
@@ -320,7 +265,7 @@ Get a presigned URL to upload a new update ZIP directly to R2.
 
 Update the manifest after uploading a new package.
 
-**Auth:** `Authorization: Basic`
+**Auth:** `Authorization: Bearer` (Clerk JWT)
 
 **Request:**
 ```json
@@ -332,11 +277,69 @@ Update the manifest after uploading a new package.
 }
 ```
 
-Note: `orgId` is set automatically from the admin's credentials — any client-supplied `orgId` is overwritten.
+Note: `orgId` is set automatically from the admin's Clerk organization — any client-supplied `orgId` is overwritten.
 
 **Response (200):**
 ```json
 { "success": true, "orgId": "jlw-aviation" }
+```
+
+---
+
+### GET /api/access-codes
+
+List all access codes for the admin's org.
+
+**Auth:** `Authorization: Bearer` (Clerk JWT)
+
+**Response (200):**
+```json
+{
+  "codes": [
+    { "accessCode": "JLW-7294", "apiKey": "key_a1b2c3..." }
+  ]
+}
+```
+
+---
+
+### POST /api/access-codes
+
+Create a new access code. The API key is generated server-side.
+
+**Auth:** `Authorization: Bearer` (Clerk JWT)
+
+**Request:**
+```json
+{ "accessCode": "JLW-7294" }
+```
+
+**Response (201):**
+```json
+{ "accessCode": "JLW-7294", "apiKey": "key_a1b2c3..." }
+```
+
+**Error (409):**
+```json
+{ "error": "Access code already exists" }
+```
+
+---
+
+### DELETE /api/access-codes
+
+Delete an access code. Pilots using this code will lose access.
+
+**Auth:** `Authorization: Bearer` (Clerk JWT)
+
+**Request:**
+```json
+{ "accessCode": "JLW-7294" }
+```
+
+**Response (200):**
+```json
+{ "success": true }
 ```
 
 ## R2 Bucket Structure
@@ -356,9 +359,9 @@ Each org is fully isolated. The Worker enforces this at the auth layer — a pil
 
 ## Security Notes
 
-- **Passwords are salted + hashed** — PBKDF2-SHA-256 with 100,000 iterations and a random 16-byte salt. Plaintext passwords are never stored.
+- **Admin auth via Clerk** — JWTs verified against Clerk's JWKS endpoint. No passwords stored in the project.
 - **API key lookups use constant-time comparison** — prevents timing attacks.
 - **Admin orgId is server-enforced** — the manifest PATCH endpoint overwrites any client-supplied orgId with the admin's actual org. An admin cannot write to another org's path.
 - **Filename validation** — upload filenames are checked for path traversal characters.
 - **Presigned URLs expire in 15 minutes** — limits the window if a URL is leaked.
-- **All secrets are encrypted at rest** — Cloudflare manages secret encryption. Secrets never appear in logs or the dashboard after creation.
+- **Access codes stored in KV** — managed via the admin dashboard, no manual secret management needed.
