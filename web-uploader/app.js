@@ -50,6 +50,7 @@ const codesError   = document.getElementById('codes-error');
 let clerk = null;
 
 let clerkReady = false;
+let signInMounted = false;
 
 async function initClerk() {
   // When loaded with data-clerk-publishable-key, window.Clerk is the
@@ -67,6 +68,9 @@ async function handleClerkState() {
     showSignIn();
     return;
   }
+
+  // User is signed in — tear down sign-in component
+  signInMounted = false;
 
   // Avoid re-entry — setActive triggers another listener call
   if (clerkReady) return;
@@ -88,11 +92,14 @@ async function handleClerkState() {
 }
 
 function showSignIn() {
+  // Don't remount if sign-in is already showing — remounting mid-flow
+  // destroys the in-progress sign-in and re-triggers verification emails.
+  if (signInMounted) return;
+  signInMounted = true;
+
   loginView.hidden = false;
   dashboardView.hidden = true;
-  const el = document.getElementById('clerk-sign-in');
-  clerk.unmountSignIn(el);
-  clerk.mountSignIn(el);
+  clerk.mountSignIn(document.getElementById('clerk-sign-in'));
 }
 
 async function loadDashboard() {
@@ -145,10 +152,11 @@ async function apiCall(method, path, body) {
 logoutBtn.addEventListener('click', async () => {
   currentManifest = null;
   selectedFile = null;
+  signInMounted = false;
   uploadForm.reset();
   resetUploadUI();
+  clerk.unmountSignIn(document.getElementById('clerk-sign-in'));
   await clerk.signOut();
-  showSignIn();
 });
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
