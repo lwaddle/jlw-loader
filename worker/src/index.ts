@@ -15,11 +15,10 @@
 import { Env } from './types';
 import {
   parseAccessCodes,
-  parseAdminCreds,
   findByAccessCode,
   findOrgByApiKey,
-  validateAdmin,
 } from './auth';
+import { verifyClerkToken } from './clerk';
 import { createPresignedGetUrl, createPresignedPutUrl } from './presign';
 
 // ---------------------------------------------------------------------------
@@ -142,7 +141,7 @@ async function handleAuth(request: Request, env: Env): Promise<Response> {
 // GET /api/manifest — current update manifest (pilot or admin auth)
 //
 // Pilot sends: X-API-Key header
-// Admin sends: Authorization: Basic header
+// Admin sends: Authorization: Bearer <clerk_jwt>
 // ---------------------------------------------------------------------------
 
 async function handleGetManifest(request: Request, env: Env): Promise<Response> {
@@ -280,7 +279,7 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
 /**
  * Resolve orgId from either auth method:
  *   1. X-API-Key header (pilot) — looked up in ACCESS_CODES
- *   2. Authorization: Basic header (admin) — validated against ADMIN_CREDS
+ *   2. Authorization: Bearer header (admin) — Clerk JWT verified
  */
 async function resolveOrgId(request: Request, env: Env): Promise<string | null> {
   // Pilot auth
@@ -295,14 +294,17 @@ async function resolveOrgId(request: Request, env: Env): Promise<string | null> 
   return admin?.orgId ?? null;
 }
 
-/** Validate admin credentials from Authorization: Basic header. */
+/** Validate admin credentials from Authorization: Bearer header (Clerk JWT). */
 async function authenticateAdmin(
   request: Request,
   env: Env,
-): Promise<{ orgId: string; username: string } | null> {
+): Promise<{ orgId: string; userId: string } | null> {
   const authHeader = request.headers.get('Authorization');
-  if (!authHeader) return null;
+  if (!authHeader?.startsWith('Bearer ')) return null;
 
-  const creds = parseAdminCreds(env.ADMIN_CREDS);
-  return validateAdmin(creds, authHeader);
+  const token = authHeader.slice(7);
+  const claims = await verifyClerkToken(token, env);
+  if (!claims) return null;
+
+  return { orgId: claims.org_slug, userId: claims.sub };
 }

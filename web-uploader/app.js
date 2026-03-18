@@ -2,8 +2,8 @@
  * JLW Loader — Web Uploader
  *
  * Single-page admin interface for uploading avionics update packages.
- * Communicates with the Cloudflare Worker API using Basic auth.
- * No dependencies — vanilla JS only.
+ * Communicates with the Cloudflare Worker API using Clerk session tokens.
+ * No dependencies beyond Clerk — vanilla JS only.
  */
 
 // ── CONFIGURATION ─────────────────────────────────────────────────
@@ -13,16 +13,12 @@
 const API_BASE = CONFIG.workerUrl.replace(/\/+$/, ''); // strip trailing slash
 
 // ── STATE ─────────────────────────────────────────────────────────
-let credentials = null;   // { username, password } — held in memory only
 let currentManifest = null;
 let selectedFile = null;
 
 // ── DOM REFS ──────────────────────────────────────────────────────
 const loginView     = document.getElementById('login-view');
 const dashboardView = document.getElementById('dashboard-view');
-const loginForm     = document.getElementById('login-form');
-const loginBtn      = document.getElementById('login-btn');
-const loginError    = document.getElementById('login-error');
 const orgName       = document.getElementById('org-name');
 const logoutBtn     = document.getElementById('logout-btn');
 const pkgStatus     = document.getElementById('pkg-status');
@@ -42,20 +38,51 @@ const progressPct   = document.getElementById('progress-pct');
 const progressBar   = document.getElementById('progress-bar');
 const uploadResult  = document.getElementById('upload-result');
 
+// ── CLERK INIT ────────────────────────────────────────────────────
+
+let clerk = null;
+
+async function initClerk() {
+  clerk = new window.Clerk(CONFIG.clerkPublishableKey);
+  await clerk.load();
+
+  if (clerk.user) {
+    await onSignedIn();
+  } else {
+    showSignIn();
+  }
+}
+
+function showSignIn() {
+  loginView.hidden = false;
+  dashboardView.hidden = true;
+  clerk.mountSignIn(document.getElementById('clerk-sign-in'));
+}
+
+async function onSignedIn() {
+  clerk.unmountSignIn(document.getElementById('clerk-sign-in'));
+
+  try {
+    const manifest = await apiCall('GET', '/api/manifest');
+    currentManifest = manifest;
+    showDashboard();
+  } catch (err) {
+    console.error('Failed to load manifest after sign-in:', err);
+    await clerk.signOut();
+    showSignIn();
+  }
+}
+
 // ── AUTH HELPERS ───────────────────────────────────────────────────
 
-function basicAuthHeader() {
-  var bytes = new TextEncoder().encode(credentials.username + ':' + credentials.password);
-  var binary = '';
-  for (var i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return 'Basic ' + btoa(binary);
+async function getAuthToken() {
+  return clerk.session.getToken();
 }
 
 async function apiCall(method, path, body) {
+  const token = await getAuthToken();
   const headers = {
-    'Authorization': basicAuthHeader(),
+    'Authorization': 'Bearer ' + token,
   };
   if (body) {
     headers['Content-Type'] = 'application/json';
@@ -72,43 +99,15 @@ async function apiCall(method, path, body) {
   return data;
 }
 
-// ── LOGIN ─────────────────────────────────────────────────────────
+// ── LOGOUT ────────────────────────────────────────────────────────
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.hidden = true;
-
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-
-  if (!username || !password) return;
-
-  setLoading(loginBtn, true);
-
-  try {
-    credentials = { username, password };
-    const manifest = await apiCall('GET', '/api/manifest');
-    currentManifest = manifest;
-    showDashboard();
-  } catch (err) {
-    credentials = null;
-    loginError.textContent = err.message;
-    loginError.hidden = false;
-  } finally {
-    setLoading(loginBtn, false);
-  }
-});
-
-logoutBtn.addEventListener('click', () => {
-  credentials = null;
+logoutBtn.addEventListener('click', async () => {
   currentManifest = null;
   selectedFile = null;
-  loginForm.reset();
-  loginError.hidden = true;
   uploadForm.reset();
   resetUploadUI();
-  dashboardView.hidden = true;
-  loginView.hidden = false;
+  await clerk.signOut();
+  showSignIn();
 });
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
@@ -412,3 +411,7 @@ function formatRelativeDate(iso) {
   if (diffDays < 30) return diffDays + ' days ago';
   return date.toLocaleDateString();
 }
+
+// ── BOOT ──────────────────────────────────────────────────────────
+
+initClerk();

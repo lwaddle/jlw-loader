@@ -5,11 +5,11 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "hash-password": "node scripts/hash-password.js",
     "generate-api-key": "node scripts/generate-api-key.js"
   },
   "dependencies": {
-    "aws4fetch": "^1.0.20"
+    "aws4fetch": "^1.0.20",
+    "jose": "^5.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250313.0",

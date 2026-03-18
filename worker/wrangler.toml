@@ -14,20 +14,19 @@ bucket_name = "jlw-loader-updates"
 # ── Non-secret vars ───────────────────────────────────────────────────────
 [vars]
 R2_BUCKET_NAME = "jlw-loader-updates"
-# CF_ACCOUNT_ID = "<your-cloudflare-account-id>"
-# ↑ Uncomment and fill in. Find this in the Cloudflare dashboard URL:
-#   dash.cloudflare.com/<account-id>/...
+CLERK_ISSUER = "https://clerk.loader.jlwav.com"
+CLERK_JWKS_URL = "https://clerk.loader.jlwav.com/.well-known/jwks.json"
+CF_ACCOUNT_ID = "6182b140e6cd521d94d1b6c5f3f243b8"
 
 # ── Secrets (set via CLI, never committed) ────────────────────────────────
 # Run each of these once before first deploy:
 #
 #   wrangler secret put ACCESS_CODES
-#   wrangler secret put ADMIN_CREDS
 #   wrangler secret put R2_ACCESS_KEY_ID
 #   wrangler secret put R2_SECRET_ACCESS_KEY
 #   wrangler secret put CF_ACCOUNT_ID
 #
-# See README.md for the JSON format of ACCESS_CODES and ADMIN_CREDS.
+# See README.md for the JSON format of ACCESS_CODES.
 
 # ── Custom domain ────────────────────────────────────────────────────────
 routes = [

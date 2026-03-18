@@ -15,4 +15,7 @@ const CONFIG = {
   //   ""
   //
   workerUrl: "",
+
+  // Clerk publishable key — get this from your Clerk dashboard.
+  clerkPublishableKey: "pk_live_Y2xlcmsubG9hZGVyLmpsd2F2LmNvbSQ",
 };
