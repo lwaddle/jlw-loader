@@ -90,7 +90,9 @@ async function handleClerkState() {
 function showSignIn() {
   loginView.hidden = false;
   dashboardView.hidden = true;
-  clerk.mountSignIn(document.getElementById('clerk-sign-in'));
+  const el = document.getElementById('clerk-sign-in');
+  clerk.unmountSignIn(el);
+  clerk.mountSignIn(el);
 }
 
 async function loadDashboard() {
