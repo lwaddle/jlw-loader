@@ -616,6 +616,8 @@ button[type="submit"]:disabled {
 }
 
 .btn-add-code {
+  width: auto;
+  margin-top: 0;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
