@@ -232,27 +232,9 @@ function renderAccessCodes() {
     var row = document.createElement('div');
     row.className = 'code-row';
 
-    var info = document.createElement('div');
-    info.className = 'code-info';
-
     var codeVal = document.createElement('span');
     codeVal.className = 'code-value';
     codeVal.textContent = item.accessCode;
-
-    var apiKeyVal = document.createElement('span');
-    apiKeyVal.className = 'code-apikey';
-    apiKeyVal.textContent = maskApiKey(item.apiKey);
-    apiKeyVal.title = 'Click to reveal';
-    apiKeyVal.addEventListener('click', function () {
-      if (apiKeyVal.textContent === item.apiKey) {
-        apiKeyVal.textContent = maskApiKey(item.apiKey);
-      } else {
-        apiKeyVal.textContent = item.apiKey;
-      }
-    });
-
-    info.appendChild(codeVal);
-    info.appendChild(apiKeyVal);
 
     var actions = document.createElement('div');
     actions.className = 'code-actions';
@@ -281,15 +263,10 @@ function renderAccessCodes() {
     actions.appendChild(copyBtn);
     actions.appendChild(deleteBtn);
 
-    row.appendChild(info);
+    row.appendChild(codeVal);
     row.appendChild(actions);
     codesList.appendChild(row);
   });
-}
-
-function maskApiKey(key) {
-  if (key.length <= 8) return key;
-  return key.slice(0, 8) + '\u2026';
 }
 
 document.getElementById('add-code-btn').addEventListener('click', async function () {
@@ -300,7 +277,7 @@ document.getElementById('add-code-btn').addEventListener('click', async function
 
   try {
     var resp = await apiCall('POST', '/api/access-codes', { accessCode: code });
-    accessCodes.push({ accessCode: resp.accessCode, apiKey: resp.apiKey });
+    accessCodes.push({ accessCode: resp.accessCode });
     renderAccessCodes();
     newCodeInput.value = '';
   } catch (err) {

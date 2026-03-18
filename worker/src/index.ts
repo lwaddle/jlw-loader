@@ -289,13 +289,7 @@ async function handleListAccessCodes(request: Request, env: Env): Promise<Respon
   }
 
   const codeNames = await listAccessCodes(env.ACCESS_CODES_KV, admin.orgId);
-  const codes = [];
-  for (const code of codeNames) {
-    const entry = await findByAccessCode(env.ACCESS_CODES_KV, code);
-    if (entry) {
-      codes.push({ accessCode: code, apiKey: entry.apiKey });
-    }
-  }
+  const codes = codeNames.map((code) => ({ accessCode: code }));
 
   return json({ codes });
 }
@@ -328,8 +322,8 @@ async function handleCreateAccessCode(request: Request, env: Env): Promise<Respo
   }
 
   try {
-    const apiKey = await createAccessCode(env.ACCESS_CODES_KV, admin.orgId, accessCode);
-    return json({ accessCode, apiKey }, 201);
+    await createAccessCode(env.ACCESS_CODES_KV, admin.orgId, accessCode);
+    return json({ accessCode }, 201);
   } catch (err) {
     if (err instanceof Error && err.message === 'ACCESS_CODE_EXISTS') {
       return errorResponse('Access code already exists', 409);

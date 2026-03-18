@@ -647,34 +647,12 @@ button[type="submit"]:disabled {
   border-bottom: none;
 }
 
-.code-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
 .code-value {
   font-size: 15px;
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--text-primary);
   letter-spacing: 0.04em;
-}
-
-.code-apikey {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 300px;
-}
-
-.code-apikey:hover {
-  color: var(--text-secondary);
 }
 
 .code-actions {
