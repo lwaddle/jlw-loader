@@ -95,4 +95,64 @@ enum KeychainService {
         delete(key: Constants.Keychain.apiKey)
         delete(key: Constants.Keychain.orgId)
     }
+
+    // MARK: - Multi-org credential management
+
+    /// Load all stored org credentials.
+    static func loadCredentials() -> [OrgCredential] {
+        guard let json = read(key: Constants.Keychain.credentials),
+              let data = json.data(using: .utf8),
+              let creds = try? JSONDecoder().decode([OrgCredential].self, from: data) else {
+            return []
+        }
+        return creds
+    }
+
+    /// Save all org credentials.
+    static func saveAllCredentials(_ credentials: [OrgCredential]) throws {
+        let data = try JSONEncoder().encode(credentials)
+        guard let json = String(data: data, encoding: .utf8) else {
+            throw KeychainError.unexpectedData
+        }
+        try save(key: Constants.Keychain.credentials, value: json)
+    }
+
+    /// Get the active org ID.
+    static var activeOrgId: String? {
+        read(key: Constants.Keychain.activeOrgId)
+    }
+
+    /// Set the active org ID.
+    static func setActiveOrgId(_ orgId: String) throws {
+        try save(key: Constants.Keychain.activeOrgId, value: orgId)
+    }
+
+    /// Migrate from single-credential format to multi-credential format.
+    /// Returns true if migration was performed.
+    @discardableResult
+    static func migrateIfNeeded() -> Bool {
+        // Already migrated if credentials key exists
+        if read(key: Constants.Keychain.credentials) != nil {
+            return false
+        }
+
+        // Check for old single-credential keys
+        guard let oldApiKey = read(key: Constants.Keychain.apiKey),
+              let oldOrgId = read(key: Constants.Keychain.orgId) else {
+            return false
+        }
+
+        // Migrate: wrap old credentials into array format
+        let cred = OrgCredential(orgId: oldOrgId, orgName: oldOrgId, apiKey: oldApiKey)
+        do {
+            try saveAllCredentials([cred])
+            try setActiveOrgId(oldOrgId)
+            // Delete old keys
+            delete(key: Constants.Keychain.apiKey)
+            delete(key: Constants.Keychain.orgId)
+            return true
+        } catch {
+            return false
+        }
+    }
 }

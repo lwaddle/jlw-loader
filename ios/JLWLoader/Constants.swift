@@ -7,6 +7,8 @@ enum Constants {
         static let apiKey = "com.jlwav.loader.apiKey"
         static let orgId = "com.jlwav.loader.orgId"
         static let service = "com.jlwav.loader"
+        static let credentials = "com.jlwav.loader.credentials"
+        static let activeOrgId = "com.jlwav.loader.activeOrgId"
     }
 
     enum UserDefaultsKeys {
