@@ -306,6 +306,94 @@ async function deleteCode(accessCode) {
   }
 }
 
+// ── FOLDER READING ───────────────────────────────────────────────
+
+/**
+ * Recursively read all files from a list of DataTransferItems.
+ * Returns an array of { path: 'E-Maps/crate.xml', file: File }
+ */
+async function readDroppedItems(dataTransferItems) {
+  const entries = [];
+  for (const item of dataTransferItems) {
+    const entry = item.webkitGetAsEntry();
+    if (entry) entries.push(entry);
+  }
+
+  const files = [];
+  await Promise.all(entries.map(e => readEntry(e, '', files)));
+  return files;
+}
+
+/**
+ * Recursively read a FileSystemEntry into the files array.
+ */
+async function readEntry(entry, prefix, files) {
+  if (entry.isFile) {
+    const file = await new Promise(resolve => entry.file(resolve));
+    const path = prefix + entry.name;
+    // Skip macOS resource forks
+    if (!path.startsWith('__MACOSX/') && !entry.name.startsWith('._')) {
+      files.push({ path, file });
+    }
+  } else if (entry.isDirectory) {
+    const dirReader = entry.createReader();
+    const dirEntries = await readDirectoryFully(dirReader);
+    await Promise.all(dirEntries.map(e => readEntry(e, prefix + entry.name + '/', files)));
+  }
+}
+
+/**
+ * DirectoryReader.readEntries() returns up to 100 entries at a time.
+ * Call repeatedly until it returns an empty array.
+ */
+function readDirectoryFully(dirReader) {
+  return new Promise((resolve, reject) => {
+    const allEntries = [];
+    function readBatch() {
+      dirReader.readEntries(entries => {
+        if (entries.length === 0) {
+          resolve(allEntries);
+        } else {
+          allEntries.push(...entries);
+          readBatch();
+        }
+      }, reject);
+    }
+    readBatch();
+  });
+}
+
+// ── ZIP BUILDING ─────────────────────────────────────────────────
+
+/**
+ * Build a ZIP file from an array of { path, file } entries using JSZip.
+ * Returns a File object with an auto-generated name.
+ */
+async function buildZipFromFiles(fileEntries, onProgress) {
+  const zip = new JSZip();
+
+  for (let i = 0; i < fileEntries.length; i++) {
+    const entry = fileEntries[i];
+    const arrayBuffer = await entry.file.arrayBuffer();
+    zip.file(entry.path, arrayBuffer);
+    onProgress('reading', 'Reading files... ' + (i + 1) + ' of ' + fileEntries.length,
+      Math.round(((i + 1) / fileEntries.length) * 50));
+  }
+
+  onProgress('building', 'Building ZIP...', 50);
+  const blob = await zip.generateAsync(
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    function (metadata) {
+      var pct = 50 + Math.round(metadata.percent / 2);
+      onProgress('building', 'Compressing... ' + Math.round(metadata.percent) + '%', pct);
+    }
+  );
+
+  var today = new Date().toISOString().slice(0, 10);
+  var filename = 'update-' + today + '.zip';
+  return new File([blob], filename, { type: 'application/zip' });
+}
+
 // ── FILE SELECTION ────────────────────────────────────────────────
 
 dropZone.addEventListener('click', () => fileInput.click());
@@ -319,11 +407,46 @@ dropZone.addEventListener('dragleave', () => {
   dropZone.classList.remove('drag-over');
 });
 
-dropZone.addEventListener('drop', (e) => {
+dropZone.addEventListener('drop', async (e) => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) selectFile(file);
+
+  const items = e.dataTransfer.items;
+  if (!items || items.length === 0) return;
+
+  // Single ZIP file → direct upload (existing behavior)
+  if (items.length === 1 && items[0].kind === 'file') {
+    const file = items[0].getAsFile();
+    if (file && file.name.toLowerCase().endsWith('.zip')) {
+      selectFile(file);
+      return;
+    }
+  }
+
+  // Folder/multi-file mode: read all entries and build ZIP
+  uploadResult.hidden = true;
+  progressWrap.hidden = false;
+  setProgress('reading', 'Scanning folders...', 0);
+
+  try {
+    const fileEntries = await readDroppedItems(items);
+
+    if (fileEntries.length === 0) {
+      showResult('error', 'No files found in the dropped items.');
+      progressWrap.hidden = true;
+      return;
+    }
+
+    setProgress('reading', fileEntries.length + ' files found. Building ZIP...', 10);
+
+    const zipFile = await buildZipFromFiles(fileEntries, setProgress);
+
+    progressWrap.hidden = true;
+    selectFile(zipFile);
+  } catch (err) {
+    showResult('error', 'Failed to read folders: ' + err.message);
+    progressWrap.hidden = true;
+  }
 });
 
 fileInput.addEventListener('change', () => {
