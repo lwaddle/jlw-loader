@@ -1,0 +1,36 @@
+name: JLWLoader
+options:
+  bundleIdPrefix: com.jlwav
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.3"
+settings:
+  SWIFT_VERSION: "5.9"
+targets:
+  JLWLoader:
+    type: application
+    platform: iOS
+    sources:
+      - JLWLoader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlwav.loader
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        TARGETED_DEVICE_FAMILY: 1
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_GENERATION_MODE: GeneratedFile
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_CFBundleDisplayName: JLW Loader
+  JLWLoaderTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - JLWLoaderTests
+    dependencies:
+      - target: JLWLoader
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.jlwav.loader.tests
