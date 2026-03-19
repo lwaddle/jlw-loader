@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainView: View {
     @ObservedObject var appState: AppState
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -12,9 +13,23 @@ struct MainView: View {
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("JLW Loader")
+            .navigationTitle(appState.activeOrgName ?? "JLW Loader")
+            .toolbar {
+                if appState.canAccessSettings {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                    }
+                }
+            }
             .task {
                 await appState.checkForUpdates()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView(appState: appState)
             }
             .sheet(isPresented: $appState.showDocumentPicker) {
                 DocumentPickerView(
