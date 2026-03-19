@@ -2,9 +2,15 @@ import SwiftUI
 
 @main
 struct JLWLoaderApp: App {
+    @StateObject private var appState = AppState()
+
     var body: some Scene {
         WindowGroup {
-            Text("JLW Loader")
+            if appState.isAuthenticated {
+                MainView(appState: appState)
+            } else {
+                AccessCodeView(appState: appState)
+            }
         }
     }
 }
