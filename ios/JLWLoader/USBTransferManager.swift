@@ -47,24 +47,33 @@ actor USBTransferManager {
             throw TransferError.driveNotAccessible
         }
 
-        let contents: [String]
+        let contents: [URL]
         do {
-            contents = try fm.contentsOfDirectory(atPath: url.path)
+            contents = try fm.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: nil,
+                options: .skipsHiddenFiles
+            )
         } catch {
             throw TransferError.wipeFailed(error.localizedDescription)
         }
 
-        for item in contents {
-            let itemURL = url.appendingPathComponent(item)
+        for itemURL in contents {
             do {
                 try fm.removeItem(at: itemURL)
             } catch {
-                throw TransferError.wipeFailed("Could not remove \(item): \(error.localizedDescription)")
+                throw TransferError.wipeFailed(
+                    "Could not remove \(itemURL.lastPathComponent): \(error.localizedDescription)"
+                )
             }
         }
 
         // Verify drive is empty
-        let remaining = try fm.contentsOfDirectory(atPath: url.path)
+        let remaining = try fm.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        )
         if !remaining.isEmpty {
             throw TransferError.wipeFailed("Drive still contains \(remaining.count) item(s) after wipe.")
         }
