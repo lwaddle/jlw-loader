@@ -5,7 +5,9 @@ enum UpdateStatus: Equatable {
     case updateAvailable
     case downloading(progress: Double)
     case verifying
-    case downloadComplete
+    case readyToTransfer
+    case transferring(progress: Double, detail: String)
+    case transferComplete(fileCount: Int)
     case upToDate
     case error(String)
 }
@@ -51,27 +53,45 @@ class AppState: ObservableObject {
             let lastDownloaded = UserDefaults.standard.string(
                 forKey: Constants.UserDefaultsKeys.lastDownloadedAt
             )
-            status = Self.determineStatus(manifest: fetched, lastDownloadedAt: lastDownloaded)
+            let lastTransferred = UserDefaults.standard.string(
+                forKey: Constants.UserDefaultsKeys.lastTransferredAt
+            )
+            status = Self.determineStatus(
+                manifest: fetched,
+                lastDownloadedAt: lastDownloaded,
+                lastTransferredAt: lastTransferred,
+                hasLocalPackage: hasLocalPackage()
+            )
         } catch {
             status = .error(error.localizedDescription)
         }
     }
 
-    /// Pure function for testability — determines status from manifest + last download.
-    nonisolated static func determineStatus(manifest: Manifest, lastDownloadedAt: String?) -> UpdateStatus {
+    /// Pure function for testability — determines status from manifest + local state.
+    nonisolated static func determineStatus(
+        manifest: Manifest,
+        lastDownloadedAt: String?,
+        lastTransferredAt: String?,
+        hasLocalPackage: Bool
+    ) -> UpdateStatus {
         guard manifest.hasPackage, let uploadedAt = manifest.uploadedAt else {
             return .upToDate
         }
 
-        guard let lastDownloaded = lastDownloadedAt else {
-            return .updateAvailable
+        // Already transferred this (or newer) upload
+        if let transferred = lastTransferredAt, uploadedAt <= transferred {
+            return .upToDate
         }
 
-        // Simple string comparison works for ISO8601 dates
-        if uploadedAt > lastDownloaded {
-            return .updateAvailable
+        // Downloaded but not yet transferred
+        if hasLocalPackage, let downloaded = lastDownloadedAt {
+            let notYetTransferred = lastTransferredAt == nil || downloaded > (lastTransferredAt ?? "")
+            if notYetTransferred && downloaded >= uploadedAt {
+                return .readyToTransfer
+            }
         }
-        return .upToDate
+
+        return .updateAvailable
     }
 
     // MARK: - Download
@@ -82,7 +102,9 @@ class AppState: ObservableObject {
         if let manifest = manifest {
             status = Self.determineStatus(
                 manifest: manifest,
-                lastDownloadedAt: UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastDownloadedAt)
+                lastDownloadedAt: UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastDownloadedAt),
+                lastTransferredAt: UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastTransferredAt),
+                hasLocalPackage: hasLocalPackage()
             )
         } else {
             status = .upToDate
@@ -140,7 +162,7 @@ class AppState: ObservableObject {
                 forKey: Constants.UserDefaultsKeys.lastDownloadedFilename
             )
 
-            status = .downloadComplete
+            status = .readyToTransfer
 
         } catch {
             status = .error(error.localizedDescription)
@@ -159,6 +181,20 @@ class AppState: ObservableObject {
 
     var lastDownloadedAt: String? {
         UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastDownloadedAt)
+    }
+
+    var lastTransferredAt: String? {
+        UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastTransferredAt)
+    }
+
+    /// Check whether a downloaded .zip package exists in Documents.
+    func hasLocalPackage() -> Bool {
+        let fm = FileManager.default
+        guard let contents = try? fm.contentsOfDirectory(
+            at: DownloadManager.documentsDirectory,
+            includingPropertiesForKeys: nil
+        ) else { return false }
+        return contents.contains { $0.pathExtension == "zip" }
     }
 
     func formattedRelativeDate(_ iso: String?) -> String {

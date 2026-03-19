@@ -13,5 +13,7 @@ enum Constants {
         static let lastDownloadedAt = "lastDownloadedAt"
         static let lastDownloadedFilename = "lastDownloadedFilename"
         static let lastCheckedAt = "lastCheckedAt"
+        static let lastTransferredAt = "lastTransferredAt"
+        static let lastTransferredFilename = "lastTransferredFilename"
     }
 }

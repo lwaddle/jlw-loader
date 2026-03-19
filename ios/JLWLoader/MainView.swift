@@ -28,8 +28,12 @@ struct MainView: View {
             downloadingView(progress: progress)
         case .verifying:
             verifyingView
-        case .downloadComplete:
-            downloadCompleteView
+        case .readyToTransfer:
+            readyToTransferView
+        case .transferring(let progress, _):
+            Text("Transferring... \(Int(progress * 100))%")
+        case .transferComplete(let fileCount):
+            Text("Transfer complete: \(fileCount) files")
         case .upToDate:
             upToDateView
         case .error(let message):
@@ -139,11 +143,11 @@ struct MainView: View {
         }
     }
 
-    private var downloadCompleteView: some View {
+    private var readyToTransferView: some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Label("Download Complete", systemImage: "checkmark.circle.fill")
+            Label("Ready to Transfer", systemImage: "checkmark.circle.fill")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.blue)
