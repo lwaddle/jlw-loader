@@ -16,6 +16,17 @@ struct MainView: View {
             .task {
                 await appState.checkForUpdates()
             }
+            .sheet(isPresented: $appState.showDocumentPicker) {
+                DocumentPickerView(
+                    onPick: { url in
+                        appState.showDocumentPicker = false
+                        Task { await appState.transferToUSB(driveURL: url) }
+                    },
+                    onCancel: {
+                        appState.showDocumentPicker = false
+                    }
+                )
+            }
         }
     }
 
@@ -191,17 +202,6 @@ struct MainView: View {
 
             Spacer()
         }
-        .sheet(isPresented: $appState.showDocumentPicker) {
-            DocumentPickerView(
-                onPick: { url in
-                    appState.showDocumentPicker = false
-                    Task { await appState.transferToUSB(driveURL: url) }
-                },
-                onCancel: {
-                    appState.showDocumentPicker = false
-                }
-            )
-        }
     }
 
     private var upToDateView: some View {
@@ -232,6 +232,17 @@ struct MainView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
+
+            if appState.hasLocalPackage() {
+                Button {
+                    appState.showDocumentPicker = true
+                } label: {
+                    Text("Transfer Again")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
 
             Spacer()
         }
@@ -298,6 +309,15 @@ struct MainView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            Button {
+                appState.showDocumentPicker = true
+            } label: {
+                Text("Transfer to Another Drive")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
             .controlSize(.large)
 
             Spacer()
