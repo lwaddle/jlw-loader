@@ -73,22 +73,21 @@ async function handleClerkState() {
   // User is signed in — tear down sign-in component
   signInMounted = false;
 
-  // Avoid re-entry — setActive triggers another listener call
-  if (clerkReady) return;
-
-  // Ensure the user has an active organization set — Clerk only includes
-  // org_id/org_slug in the JWT when an organization is active.
+  // Ensure the user has an active organization set
   const memberships = clerk.user.organizationMemberships;
   if (memberships && memberships.length > 0 && !clerk.organization) {
     await clerk.setActive({
       organization: memberships[0].organization.id,
     });
-    // setActive triggers the listener again — exit here, the next call
-    // will have clerk.organization set and proceed to loadDashboard.
     return;
   }
 
+  // Avoid re-entry — setActive triggers another listener call
+  if (clerkReady) return;
+
   clerkReady = true;
+  closeOrgDropdown();
+  resetUploadUI();
   await loadDashboard();
 }
 
@@ -700,7 +699,7 @@ function renderOrgDropdown() {
     btn.textContent = mem.organization.name;
     btn.addEventListener('click', function () {
       if (mem.organization.id !== activeOrgId) {
-        switchOrg(mem.organization.id);
+        switchOrg(mem.organization.id).catch(console.error);
       }
       closeOrgDropdown();
     });
