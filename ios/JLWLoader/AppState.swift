@@ -58,6 +58,16 @@ class AppState: ObservableObject {
             let lastTransferred = UserDefaults.standard.string(
                 forKey: Constants.UserDefaultsKeys.lastTransferredAt
             )
+            // If a newer update was uploaded since our last download,
+            // delete the stale local ZIP so the pilot sees "Update Available"
+            // instead of "Ready to Transfer" with outdated data.
+            if let uploadedAt = fetched.uploadedAt,
+               let downloaded = lastDownloaded,
+               uploadedAt > downloaded,
+               hasLocalPackage() {
+                await downloadManager.deleteExistingPackage()
+            }
+
             status = Self.determineStatus(
                 manifest: fetched,
                 lastDownloadedAt: lastDownloaded,

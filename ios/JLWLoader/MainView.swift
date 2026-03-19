@@ -178,6 +178,15 @@ struct MainView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
 
+            Button {
+                Task { await appState.checkForUpdates() }
+            } label: {
+                Text("Check for Updates")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
             Spacer()
         }
         .sheet(isPresented: $appState.showDocumentPicker) {
