@@ -6,11 +6,15 @@ struct JLWLoaderApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if appState.isAuthenticated {
-                MainView(appState: appState)
-            } else {
-                AccessCodeView(appState: appState)
+            Group {
+                if appState.isAuthenticated {
+                    MainView(appState: appState)
+                } else {
+                    AccessCodeView(appState: appState)
+                }
             }
+            .frame(maxWidth: 500)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
