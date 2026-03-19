@@ -51,6 +51,28 @@ final class ZIPExtractorTests: XCTestCase {
         XCTAssertEqual(progressUpdates.last?.1, 2)
     }
 
+    /// Regression test: ZIPs created by macOS ditto/Finder use data descriptors
+    /// (bit 3 of general purpose flag) with zeroed sizes in local file headers.
+    /// The central directory has the correct sizes.
+    func testExtractDataDescriptorZIP() async throws {
+        let zipURL = try TestZIPBuilder.createDataDescriptorZIP(in: tempDir, files: [
+            "file1.txt": "Hello from ditto",
+            "subdir/file2.txt": "Nested content"
+        ])
+
+        let destDir = tempDir.appendingPathComponent("ditto-output")
+
+        let count = try await ZIPExtractor.extract(zipAt: zipURL, to: destDir) { _, _ in }
+
+        XCTAssertEqual(count, 2, "Should extract 2 files even with data descriptors")
+
+        let content1 = try String(contentsOf: destDir.appendingPathComponent("file1.txt"))
+        XCTAssertEqual(content1, "Hello from ditto")
+
+        let content2 = try String(contentsOf: destDir.appendingPathComponent("subdir/file2.txt"))
+        XCTAssertEqual(content2, "Nested content")
+    }
+
     func testExtractToNonexistentDirectory() async throws {
         let zipURL = try TestZIPBuilder.createZIP(in: tempDir, files: ["a.txt": "test"])
         let destDir = tempDir.appendingPathComponent("does-not-exist")

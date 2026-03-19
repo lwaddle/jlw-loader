@@ -34,10 +34,18 @@ enum ZIPExtractor {
         let compressionMethod: UInt16
         let compressedSize: UInt32
         let uncompressedSize: UInt32
-        let dataOffset: Int
+        let localHeaderOffset: UInt32
 
         var isDirectory: Bool {
             name.hasSuffix("/")
+        }
+
+        /// Compute where file data starts by reading the local file header at the stored offset.
+        func dataOffset(in data: Data) -> Int {
+            let offset = Int(localHeaderOffset)
+            let fileNameLength = Int(readUInt16(from: data, at: offset + 26))
+            let extraFieldLength = Int(readUInt16(from: data, at: offset + 28))
+            return offset + 30 + fileNameLength + extraFieldLength
         }
     }
 
@@ -57,11 +65,13 @@ enum ZIPExtractor {
             throw ExtractionError.readFailed
         }
 
-        guard data.count >= 4 else {
+        guard data.count >= 22 else {
             throw ExtractionError.invalidArchive
         }
 
-        let entries = try parseEntries(from: data)
+        // Parse entries from the central directory (always has correct sizes,
+        // even when local headers use data descriptors with zeroed sizes).
+        let entries = try parseCentralDirectory(from: data)
 
         // Create destination if it doesn't exist
         let fm = FileManager.default
@@ -90,25 +100,25 @@ enum ZIPExtractor {
                 try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
             }
 
+            let dataStart = entry.dataOffset(in: data)
+
             let fileData: Data
             switch entry.compressionMethod {
             case 0:
                 // Stored — copy bytes directly
-                let start = entry.dataOffset
-                let end = start + Int(entry.compressedSize)
+                let end = dataStart + Int(entry.compressedSize)
                 guard end <= data.count else {
                     throw ExtractionError.decompressionFailed(entry.name)
                 }
-                fileData = data[start..<end]
+                fileData = data[dataStart..<end]
 
             case 8:
                 // Deflated — decompress with COMPRESSION_ZLIB
-                let start = entry.dataOffset
-                let end = start + Int(entry.compressedSize)
+                let end = dataStart + Int(entry.compressedSize)
                 guard end <= data.count else {
                     throw ExtractionError.decompressionFailed(entry.name)
                 }
-                let compressedData = data[start..<end]
+                let compressedData = data[dataStart..<end]
                 fileData = try decompressDeflate(
                     compressedData,
                     uncompressedSize: Int(entry.uncompressedSize),
@@ -125,6 +135,12 @@ enum ZIPExtractor {
                 throw ExtractionError.writeFailed(entry.name)
             }
 
+            // Sync to physical media (critical for external USB drives)
+            if let handle = try? FileHandle(forWritingTo: outputURL) {
+                handle.synchronizeFile()
+                handle.closeFile()
+            }
+
             extracted += 1
             onProgress(extracted, total)
         }
@@ -132,28 +148,60 @@ enum ZIPExtractor {
         return extracted
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Central Directory Parsing
 
-    /// Parses local file headers from ZIP data.
-    private static func parseEntries(from data: Data) throws -> [ZIPEntry] {
-        var entries: [ZIPEntry] = []
-        var offset = 0
-        let localHeaderSignature: UInt32 = 0x04034B50 // PK\x03\x04
-
-        while offset + 30 <= data.count {
-            let sig = readUInt32(from: data, at: offset)
-            guard sig == localHeaderSignature else {
+    /// Parses the central directory to get entries with correct sizes.
+    /// The central directory always has accurate compressedSize/uncompressedSize,
+    /// unlike local file headers which may be zeroed when data descriptors are used.
+    private static func parseCentralDirectory(from data: Data) throws -> [ZIPEntry] {
+        // Find End of Central Directory record (scan backward for PK\x05\x06)
+        let eocdSignature: [UInt8] = [0x50, 0x4B, 0x05, 0x06]
+        var eocdOffset = -1
+        let searchStart = max(0, data.count - 65557) // max comment = 65535 + 22 byte EOCD
+        for i in stride(from: data.count - 22, through: searchStart, by: -1) {
+            if data[i] == eocdSignature[0],
+               data[i+1] == eocdSignature[1],
+               data[i+2] == eocdSignature[2],
+               data[i+3] == eocdSignature[3] {
+                eocdOffset = i
                 break
             }
+        }
 
-            let generalFlag = readUInt16(from: data, at: offset + 6)
-            let compressionMethod = readUInt16(from: data, at: offset + 8)
-            let compressedSize = readUInt32(from: data, at: offset + 18)
-            let uncompressedSize = readUInt32(from: data, at: offset + 22)
-            let fileNameLength = Int(readUInt16(from: data, at: offset + 26))
-            let extraFieldLength = Int(readUInt16(from: data, at: offset + 28))
+        guard eocdOffset >= 0 else {
+            throw ExtractionError.invalidArchive
+        }
 
-            let nameStart = offset + 30
+        let entryCount = Int(readUInt16(from: data, at: eocdOffset + 10))
+        let centralDirOffset = Int(readUInt32(from: data, at: eocdOffset + 16))
+
+        guard centralDirOffset >= 0, centralDirOffset < data.count else {
+            throw ExtractionError.invalidArchive
+        }
+
+        var entries: [ZIPEntry] = []
+        var offset = centralDirOffset
+        let centralDirSignature: UInt32 = 0x02014B50 // PK\x01\x02
+
+        for _ in 0..<entryCount {
+            guard offset + 46 <= data.count else {
+                throw ExtractionError.invalidArchive
+            }
+
+            let sig = readUInt32(from: data, at: offset)
+            guard sig == centralDirSignature else {
+                throw ExtractionError.invalidArchive
+            }
+
+            let compressionMethod = readUInt16(from: data, at: offset + 10)
+            let compressedSize = readUInt32(from: data, at: offset + 20)
+            let uncompressedSize = readUInt32(from: data, at: offset + 24)
+            let fileNameLength = Int(readUInt16(from: data, at: offset + 28))
+            let extraFieldLength = Int(readUInt16(from: data, at: offset + 30))
+            let commentLength = Int(readUInt16(from: data, at: offset + 32))
+            let localHeaderOffset = readUInt32(from: data, at: offset + 42)
+
+            let nameStart = offset + 46
             let nameEnd = nameStart + fileNameLength
             guard nameEnd <= data.count else {
                 throw ExtractionError.invalidArchive
@@ -163,28 +211,15 @@ enum ZIPExtractor {
                 throw ExtractionError.invalidArchive
             }
 
-            let dataOffset = nameEnd + extraFieldLength
-
-            let entry = ZIPEntry(
+            entries.append(ZIPEntry(
                 name: fileName,
                 compressionMethod: compressionMethod,
                 compressedSize: compressedSize,
                 uncompressedSize: uncompressedSize,
-                dataOffset: dataOffset
-            )
-            entries.append(entry)
+                localHeaderOffset: localHeaderOffset
+            ))
 
-            offset = dataOffset + Int(compressedSize)
-
-            // Skip optional data descriptor (if bit 3 of general purpose flag is set)
-            if generalFlag & 0x08 != 0 {
-                // Data descriptor may or may not have signature
-                if offset + 4 <= data.count && readUInt32(from: data, at: offset) == 0x08074B50 {
-                    offset += 16 // signature(4) + crc(4) + compressed(4) + uncompressed(4)
-                } else if offset + 12 <= data.count {
-                    offset += 12 // crc(4) + compressed(4) + uncompressed(4)
-                }
-            }
+            offset = nameEnd + extraFieldLength + commentLength
         }
 
         if entries.isEmpty {
@@ -194,13 +229,14 @@ enum ZIPExtractor {
         return entries
     }
 
+    // MARK: - Decompression
+
     /// Decompresses deflated data using the Compression framework.
     private static func decompressDeflate(
         _ compressed: Data,
         uncompressedSize: Int,
         name: String
     ) throws -> Data {
-        // Use raw DEFLATE via compression_decode_buffer with COMPRESSION_ZLIB
         let destinationSize = max(uncompressedSize, 1)
         let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: destinationSize)
         defer { destinationBuffer.deallocate() }
@@ -225,6 +261,8 @@ enum ZIPExtractor {
 
         return Data(bytes: destinationBuffer, count: decodedSize)
     }
+
+    // MARK: - Binary Helpers
 
     /// Reads a little-endian UInt16 from data at the given offset.
     private static func readUInt16(from data: Data, at offset: Int) -> UInt16 {
