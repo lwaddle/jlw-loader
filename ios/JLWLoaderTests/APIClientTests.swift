@@ -15,6 +15,26 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(response.orgId, "jlw-aviation")
     }
 
+    func testDecodeAuthResponseWithOrgName() throws {
+        let json = """
+        { "apiKey": "key_abc123", "orgId": "jlw-aviation", "orgName": "JLW Aviation" }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(AuthResponse.self, from: json)
+        XCTAssertEqual(response.apiKey, "key_abc123")
+        XCTAssertEqual(response.orgId, "jlw-aviation")
+        XCTAssertEqual(response.orgName, "JLW Aviation")
+    }
+
+    func testDecodeAuthResponseWithoutOrgName() throws {
+        let json = """
+        { "apiKey": "key_abc123", "orgId": "jlw-aviation" }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(AuthResponse.self, from: json)
+        XCTAssertEqual(response.orgName, "jlw-aviation")
+    }
+
     // MARK: - Download response decoding
 
     func testDecodeDownloadResponse() throws {

@@ -5,6 +5,14 @@ import Foundation
 struct AuthResponse: Codable {
     let apiKey: String
     let orgId: String
+    let orgName: String
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        apiKey = try container.decode(String.self, forKey: .apiKey)
+        orgId = try container.decode(String.self, forKey: .orgId)
+        orgName = try container.decodeIfPresent(String.self, forKey: .orgName) ?? orgId
+    }
 }
 
 struct DownloadResponse: Codable {
@@ -71,22 +79,32 @@ struct APIClient {
     }
 
     /// Fetch current manifest for the authenticated org.
-    /// GET /api/manifest  (X-API-Key header)
-    func fetchManifest() async throws -> Manifest {
-        guard let apiKey = KeychainService.apiKey else {
-            throw APIError.noCredentials
-        }
+    func fetchManifest(apiKey: String) async throws -> Manifest {
         return try await get("/api/manifest", auth: .apiKey(apiKey))
     }
 
     /// Get presigned download URL.
-    /// POST /api/download  (X-API-Key header)
-    func getDownloadURL() async throws -> DownloadResponse {
-        guard let apiKey = KeychainService.apiKey else {
-            throw APIError.noCredentials
-        }
+    func getDownloadURL(apiKey: String) async throws -> DownloadResponse {
         let body: [String: String] = [:]
         return try await post("/api/download", body: body, auth: .apiKey(apiKey))
+    }
+
+    /// Backward-compatible overload — reads API key from Keychain.
+    /// TODO: Remove after AppState refactor (Task 9)
+    func fetchManifest() async throws -> Manifest {
+        guard let apiKey = KeychainService.apiKey ?? KeychainService.loadCredentials().first?.apiKey else {
+            throw APIError.noCredentials
+        }
+        return try await fetchManifest(apiKey: apiKey)
+    }
+
+    /// Backward-compatible overload — reads API key from Keychain.
+    /// TODO: Remove after AppState refactor (Task 9)
+    func getDownloadURL() async throws -> DownloadResponse {
+        guard let apiKey = KeychainService.apiKey ?? KeychainService.loadCredentials().first?.apiKey else {
+            throw APIError.noCredentials
+        }
+        return try await getDownloadURL(apiKey: apiKey)
     }
 
     // MARK: - Private
