@@ -77,6 +77,13 @@ enum ZIPExtractor {
         for entry in fileEntries {
             let outputURL = destination.appendingPathComponent(entry.name)
 
+            // Guard against path traversal (e.g., "../../etc/something")
+            let resolvedPath = outputURL.standardizedFileURL.path
+            let destPath = destination.standardizedFileURL.path
+            guard resolvedPath.hasPrefix(destPath) else {
+                throw ExtractionError.invalidArchive
+            }
+
             // Create parent directories as needed
             let parentDir = outputURL.deletingLastPathComponent()
             if !fm.fileExists(atPath: parentDir.path) {
