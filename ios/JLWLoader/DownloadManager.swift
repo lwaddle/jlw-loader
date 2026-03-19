@@ -33,33 +33,22 @@ actor DownloadManager {
         let filename = manifest.packageFilename ?? downloadInfo.filename
         let destinationURL = Self.documentsDirectory.appendingPathComponent(filename)
 
-        // Download with progress
+        // Download to temp file with progress via delegate
+        let delegate = DownloadProgressDelegate(onProgress: onProgress)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
         let request = URLRequest(url: url)
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+        let (tempURL, response) = try await session.download(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             throw DownloadError.downloadFailed
         }
 
-        let expectedLength = httpResponse.expectedContentLength
-        var receivedData = Data()
-        if expectedLength > 0 {
-            receivedData.reserveCapacity(Int(expectedLength))
-        }
-
-        var receivedBytes: Int64 = 0
-        for try await byte in asyncBytes {
-            receivedData.append(byte)
-            receivedBytes += 1
-            if expectedLength > 0 && receivedBytes % 65536 == 0 {
-                let progress = Double(receivedBytes) / Double(expectedLength)
-                onProgress(min(progress, 1.0))
-            }
-        }
+        // Move temp file to Documents
+        try FileManager.default.moveItem(at: tempURL, to: destinationURL)
         onProgress(1.0)
-
-        try receivedData.write(to: destinationURL)
         return destinationURL
     }
 
@@ -69,10 +58,21 @@ actor DownloadManager {
         return computedHash == expectedSHA256
     }
 
-    /// Compute SHA-256 hash of a file.
+    /// Compute SHA-256 hash of a file, streaming in chunks to avoid loading entire file into memory.
     static func computeSHA256(of url: URL) throws -> String {
-        let data = try Data(contentsOf: url)
-        let digest = SHA256.hash(data: data)
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { handle.closeFile() }
+
+        var hasher = SHA256()
+        let bufferSize = 1024 * 1024 // 1 MB chunks
+        while autoreleasepool(invoking: {
+            let chunk = handle.readData(ofLength: bufferSize)
+            guard !chunk.isEmpty else { return false }
+            hasher.update(data: chunk)
+            return true
+        }) {}
+
+        let digest = hasher.finalize()
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
@@ -109,5 +109,35 @@ actor DownloadManager {
                 return "Not enough storage on this device."
             }
         }
+    }
+}
+
+// MARK: - Download Progress Delegate
+
+private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+    let onProgress: @Sendable (Double) -> Void
+
+    init(onProgress: @Sendable @escaping (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        onProgress(min(progress, 1.0))
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        // Required delegate method — file is handled by the async download(for:) call
     }
 }

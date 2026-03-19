@@ -18,6 +18,7 @@ class AppState: ObservableObject {
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager
+    private var downloadTask: Task<Void, Never>?
 
     init(
         apiClient: APIClient = APIClient(),
@@ -74,6 +75,19 @@ class AppState: ObservableObject {
     }
 
     // MARK: - Download
+
+    func cancelDownload() {
+        downloadTask?.cancel()
+        downloadTask = nil
+        if let manifest = manifest {
+            status = Self.determineStatus(
+                manifest: manifest,
+                lastDownloadedAt: UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastDownloadedAt)
+            )
+        } else {
+            status = .upToDate
+        }
+    }
 
     func downloadUpdate() async {
         guard let manifest = manifest else { return }

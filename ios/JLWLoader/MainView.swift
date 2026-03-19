@@ -116,6 +116,15 @@ struct MainView: View {
                     .foregroundColor(.secondary)
             }
 
+            Button {
+                appState.cancelDownload()
+            } label: {
+                Text("Cancel")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
             Spacer()
         }
     }
