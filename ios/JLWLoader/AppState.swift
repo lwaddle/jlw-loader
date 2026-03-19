@@ -188,7 +188,7 @@ class AppState: ObservableObject {
     }
 
     /// Check whether a downloaded .zip package exists in Documents.
-    func hasLocalPackage() -> Bool {
+    private func hasLocalPackage() -> Bool {
         let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(
             at: DownloadManager.documentsDirectory,
