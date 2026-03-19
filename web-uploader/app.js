@@ -171,6 +171,14 @@ function renderManifest() {
   const m = currentManifest;
   orgName.textContent = (clerk.organization && clerk.organization.name) || m.orgId || 'Unknown';
 
+  // Show dropdown affordance if user has multiple orgs
+  const memberships = clerk.user.organizationMemberships;
+  if (memberships && memberships.length > 1) {
+    orgName.classList.add('has-switcher');
+  } else {
+    orgName.classList.remove('has-switcher');
+  }
+
   // Clear previous content
   while (pkgDetails.firstChild) {
     pkgDetails.removeChild(pkgDetails.firstChild);
