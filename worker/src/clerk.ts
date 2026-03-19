@@ -7,6 +7,7 @@ let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 export interface ClerkClaims {
   sub: string;
   org_slug: string;
+  org_name: string;
 }
 
 /**
@@ -29,13 +30,17 @@ export async function verifyClerkToken(
     const sub = payload.sub;
     const p = payload as Record<string, unknown>;
 
-    // Clerk v5 uses abbreviated claims: "o" contains { id, slg, rol, per }
-    // Older tokens may use "org_slug" directly.
+    // Clerk v5 uses abbreviated claims: "o" contains { id, slg, rol, per, nam }
+    // Older tokens may use "org_slug" / "org_name" directly.
     let orgSlug: string | undefined;
+    let orgName: string | undefined;
     if (p.org_slug) {
       orgSlug = p.org_slug as string;
+      orgName = p.org_name as string | undefined;
     } else if (p.o && typeof p.o === 'object') {
-      orgSlug = (p.o as Record<string, unknown>).slg as string | undefined;
+      const o = p.o as Record<string, unknown>;
+      orgSlug = o.slg as string | undefined;
+      orgName = o.nam as string | undefined;
     }
 
     if (!sub || !orgSlug) {
@@ -43,7 +48,7 @@ export async function verifyClerkToken(
       return null;
     }
 
-    return { sub, org_slug: orgSlug };
+    return { sub, org_slug: orgSlug, org_name: orgName || orgSlug };
   } catch (err) {
     console.error('Clerk JWT verification failed:', err);
     return null;

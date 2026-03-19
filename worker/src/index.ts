@@ -141,7 +141,7 @@ async function handleAuth(request: Request, env: Env): Promise<Response> {
     );
   }
 
-  return json({ apiKey: entry.apiKey, orgId: entry.orgId });
+  return json({ apiKey: entry.apiKey, orgId: entry.orgId, orgName: entry.orgName || entry.orgId });
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +322,7 @@ async function handleCreateAccessCode(request: Request, env: Env): Promise<Respo
   }
 
   try {
-    await createAccessCode(env.ACCESS_CODES_KV, admin.orgId, accessCode);
+    await createAccessCode(env.ACCESS_CODES_KV, admin.orgId, accessCode, admin.orgName);
     return json({ accessCode }, 201);
   } catch (err) {
     if (err instanceof Error && err.message === 'ACCESS_CODE_EXISTS') {
@@ -391,7 +391,7 @@ async function resolveOrgId(request: Request, env: Env): Promise<string | null> 
 async function authenticateAdmin(
   request: Request,
   env: Env,
-): Promise<{ orgId: string; userId: string } | null> {
+): Promise<{ orgId: string; userId: string; orgName: string } | null> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
 
@@ -399,5 +399,5 @@ async function authenticateAdmin(
   const claims = await verifyClerkToken(token, env);
   if (!claims) return null;
 
-  return { orgId: claims.org_slug, userId: claims.sub };
+  return { orgId: claims.org_slug, userId: claims.sub, orgName: claims.org_name || claims.org_slug };
 }

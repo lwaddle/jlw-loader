@@ -38,6 +38,7 @@ export interface Env {
 export interface AccessCodeEntry {
   orgId: string;
   apiKey: string;
+  orgName?: string;
 }
 
 /**

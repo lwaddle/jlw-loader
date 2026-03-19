@@ -59,6 +59,7 @@ export async function createAccessCode(
   kv: KVNamespace,
   orgId: string,
   accessCode: string,
+  orgName?: string,
 ): Promise<string> {
   const existing = await kv.get(`code:${accessCode}`);
   if (existing !== null) {
@@ -66,7 +67,7 @@ export async function createAccessCode(
   }
 
   const apiKey = generateApiKey();
-  const entry: AccessCodeEntry = { orgId, apiKey };
+  const entry: AccessCodeEntry = { orgId, apiKey, orgName };
 
   await kv.put(`code:${accessCode}`, JSON.stringify(entry));
 
