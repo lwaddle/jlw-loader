@@ -44,6 +44,7 @@ const codesEmpty   = document.getElementById('codes-empty');
 const addCodeForm  = document.getElementById('add-code-form');
 const newCodeInput = document.getElementById('new-code-input');
 const codesError   = document.getElementById('codes-error');
+const orgDropdown  = document.getElementById('org-dropdown');
 
 // ── CLERK INIT ────────────────────────────────────────────────────
 
@@ -175,8 +176,10 @@ function renderManifest() {
   const memberships = clerk.user.organizationMemberships;
   if (memberships && memberships.length > 1) {
     orgName.classList.add('has-switcher');
+    orgName.onclick = toggleOrgDropdown;
   } else {
     orgName.classList.remove('has-switcher');
+    orgName.onclick = null;
   }
 
   // Clear previous content
@@ -677,6 +680,65 @@ function formatRelativeDate(iso) {
   if (diffDays < 30) return diffDays + ' days ago';
   return date.toLocaleDateString();
 }
+
+// ── ORG SWITCHER ──────────────────────────────────────────────────
+
+function renderOrgDropdown() {
+  while (orgDropdown.firstChild) {
+    orgDropdown.removeChild(orgDropdown.firstChild);
+  }
+
+  const memberships = clerk.user.organizationMemberships;
+  const activeOrgId = clerk.organization ? clerk.organization.id : null;
+
+  memberships.forEach(function (mem) {
+    var btn = document.createElement('button');
+    btn.className = 'org-dropdown-item';
+    if (mem.organization.id === activeOrgId) {
+      btn.classList.add('active');
+    }
+    btn.textContent = mem.organization.name;
+    btn.addEventListener('click', function () {
+      if (mem.organization.id !== activeOrgId) {
+        switchOrg(mem.organization.id);
+      }
+      closeOrgDropdown();
+    });
+    orgDropdown.appendChild(btn);
+  });
+}
+
+function toggleOrgDropdown() {
+  if (orgDropdown.hidden) {
+    renderOrgDropdown();
+    orgDropdown.hidden = false;
+    orgName.classList.add('open');
+  } else {
+    closeOrgDropdown();
+  }
+}
+
+function closeOrgDropdown() {
+  orgDropdown.hidden = true;
+  orgName.classList.remove('open');
+}
+
+async function switchOrg(orgId) {
+  clerkReady = false;
+  await clerk.setActive({ organization: orgId });
+}
+
+document.addEventListener('click', function (e) {
+  if (!orgDropdown.hidden && !e.target.closest('.org-switcher')) {
+    closeOrgDropdown();
+  }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && !orgDropdown.hidden) {
+    closeOrgDropdown();
+  }
+});
 
 // ── BOOT ──────────────────────────────────────────────────────────
 // initClerk() is called from index.html after the Clerk SDK loads.

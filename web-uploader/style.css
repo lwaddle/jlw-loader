@@ -326,6 +326,64 @@ button[type="submit"]:disabled {
   transform: rotate(180deg);
 }
 
+.org-switcher {
+  position: relative;
+}
+
+.org-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  overflow: hidden;
+  animation: dropdownIn 0.15s ease-out;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.org-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.org-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.org-dropdown-item.active {
+  color: var(--green);
+}
+
+.org-dropdown-item.active::after {
+  content: '\2713';
+  font-size: 12px;
+  color: var(--green);
+}
+
+.org-dropdown-item + .org-dropdown-item {
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* ── DASHBOARD ─────────────────────────────────────────────────── */
 
 .dashboard {
