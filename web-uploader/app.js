@@ -169,7 +169,7 @@ function showDashboard() {
 
 function renderManifest() {
   const m = currentManifest;
-  orgName.textContent = m.orgId || 'Unknown';
+  orgName.textContent = (clerk.organization && clerk.organization.name) || m.orgId || 'Unknown';
 
   // Clear previous content
   while (pkgDetails.firstChild) {
