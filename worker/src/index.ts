@@ -326,7 +326,7 @@ async function handleCreateAccessCode(request: Request, env: Env): Promise<Respo
     return json({ accessCode }, 201);
   } catch (err) {
     if (err instanceof Error && err.message === 'ACCESS_CODE_EXISTS') {
-      return errorResponse('Access code already exists', 409);
+      return errorResponse('This access code is unavailable. Please choose a different one.', 409);
     }
     throw err;
   }
