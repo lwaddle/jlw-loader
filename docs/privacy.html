@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — JLW Loader</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1d1d1f;
+      background: #fff;
+      line-height: 1.7;
+      padding: 3rem 1.5rem;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .app-name { color: #6e6e73; font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .effective { color: #6e6e73; font-size: 0.85rem; margin-bottom: 2rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul { margin: 0 0 1rem 1.5rem; }
+    li { margin-bottom: 0.35rem; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e5e5e7; color: #6e6e73; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="app-name">JLW Loader</p>
+  <p class="effective">Effective March 19, 2026</p>
+
+  <p>JLW Loader is an iOS app that helps pilots download and transfer avionics database updates to USB drives. Your privacy is important to us, and we've built the app to collect as little data as possible.</p>
+
+  <h2>Information We Collect</h2>
+  <p>JLW Loader does <strong>not</strong> collect personal information. The app stores the following data locally on your device:</p>
+  <ul>
+    <li>An API key used to authenticate with our update server (stored in the iOS Keychain)</li>
+    <li>An organization identifier used to fetch the correct updates</li>
+    <li>Timestamps of your most recent download and USB transfer</li>
+  </ul>
+  <p>This data never leaves your device except as described below.</p>
+
+  <h2>Network Communication</h2>
+  <p>The app connects to our server to:</p>
+  <ul>
+    <li>Authenticate your access code (one-time setup)</li>
+    <li>Check for available database updates</li>
+    <li>Download update files</li>
+  </ul>
+  <p>These requests include only your API key and organization identifier — no personal data, device identifiers, or location information is transmitted.</p>
+
+  <h2>Analytics and Tracking</h2>
+  <p>JLW Loader does not include any analytics, crash reporting, or advertising frameworks. We do not track your usage of the app.</p>
+
+  <h2>Third-Party Services</h2>
+  <p>Update files are stored on Cloudflare R2. Downloads use time-limited URLs that expire after 15 minutes. Cloudflare's infrastructure may process standard connection metadata (IP addresses, request headers) as part of normal network operations, subject to <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's Privacy Policy</a>.</p>
+
+  <h2>Data Sharing</h2>
+  <p>We do not sell, share, or transfer your data to third parties for any purpose beyond delivering the service described above.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>If we update this policy, we will revise the effective date above. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy? Reach us at <a href="mailto:support@jlwav.com">support@jlwav.com</a>.</p>
+
+  <div class="footer">
+    &copy; 2026 JLW Aviation &middot; <a href="support">Support</a>
+  </div>
+</body>
+</html>
