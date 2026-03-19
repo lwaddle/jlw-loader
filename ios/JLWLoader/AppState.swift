@@ -17,9 +17,11 @@ class AppState: ObservableObject {
     @Published var status: UpdateStatus = .checking
     @Published var manifest: Manifest?
     @Published var isAuthenticated: Bool = false
+    @Published var showDocumentPicker: Bool = false
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager
+    private let transferManager = USBTransferManager()
     private var downloadTask: Task<Void, Never>?
 
     init(
@@ -169,6 +171,76 @@ class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Transfer
+
+    func transferToUSB(driveURL: URL) async {
+        guard let manifest = manifest else { return }
+
+        // Find the downloaded ZIP
+        let fm = FileManager.default
+        let docs = DownloadManager.documentsDirectory
+        guard let contents = try? fm.contentsOfDirectory(at: docs, includingPropertiesForKeys: nil),
+              let zipURL = contents.first(where: { $0.pathExtension == "zip" }) else {
+            status = .error("Downloaded update not found. Please download again.")
+            return
+        }
+
+        // Start security-scoped access
+        guard driveURL.startAccessingSecurityScopedResource() else {
+            status = .error("Could not access the USB drive. Please try again.")
+            return
+        }
+        defer { driveURL.stopAccessingSecurityScopedResource() }
+
+        // Estimate uncompressed size (~2x compressed for navigation data)
+        let requiredBytes = Int64((manifest.packageSizeBytes ?? 0) * 2)
+
+        status = .transferring(progress: 0, detail: "Preparing...")
+
+        do {
+            let fileCount = try await transferManager.transfer(
+                zipAt: zipURL,
+                to: driveURL,
+                requiredBytes: requiredBytes
+            ) { [weak self] progress, detail in
+                Task { @MainActor in
+                    self?.status = .transferring(progress: progress, detail: detail)
+                }
+            }
+
+            // Record transfer success
+            UserDefaults.standard.set(
+                ISO8601DateFormatter().string(from: Date()),
+                forKey: Constants.UserDefaultsKeys.lastTransferredAt
+            )
+            UserDefaults.standard.set(
+                manifest.packageFilename,
+                forKey: Constants.UserDefaultsKeys.lastTransferredFilename
+            )
+
+            status = .transferComplete(fileCount: fileCount)
+
+        } catch {
+            status = .error(error.localizedDescription)
+        }
+    }
+
+    func transferComplete() {
+        if let manifest = manifest {
+            let lastTransferred = UserDefaults.standard.string(
+                forKey: Constants.UserDefaultsKeys.lastTransferredAt
+            )
+            status = Self.determineStatus(
+                manifest: manifest,
+                lastDownloadedAt: UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastDownloadedAt),
+                lastTransferredAt: lastTransferred,
+                hasLocalPackage: hasLocalPackage()
+            )
+        } else {
+            status = .upToDate
+        }
+    }
+
     // MARK: - Helpers
 
     var lastCheckedAt: String? {
@@ -185,6 +257,10 @@ class AppState: ObservableObject {
 
     var lastTransferredAt: String? {
         UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastTransferredAt)
+    }
+
+    var lastTransferredFilename: String? {
+        UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastTransferredFilename)
     }
 
     /// Check whether a downloaded .zip package exists in Documents.
