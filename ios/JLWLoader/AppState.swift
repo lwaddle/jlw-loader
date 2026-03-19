@@ -18,6 +18,8 @@ class AppState: ObservableObject {
     @Published var manifest: Manifest?
     @Published var isAuthenticated: Bool = false
     @Published var showDocumentPicker: Bool = false
+    @Published var credentials: [OrgCredential] = []
+    @Published var activeOrgId: String?
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager
@@ -30,23 +32,106 @@ class AppState: ObservableObject {
     ) {
         self.apiClient = apiClient
         self.downloadManager = downloadManager ?? DownloadManager(apiClient: apiClient)
-        self.isAuthenticated = KeychainService.hasCredentials
+
+        // Migrate single-credential format if needed
+        KeychainService.migrateIfNeeded()
+
+        // Load credentials
+        self.credentials = KeychainService.loadCredentials()
+        self.activeOrgId = KeychainService.activeOrgId
+        self.isAuthenticated = !credentials.isEmpty
+    }
+
+    /// The currently active credential.
+    var activeCredential: OrgCredential? {
+        guard let activeId = activeOrgId else {
+            return credentials.first
+        }
+        return credentials.first { $0.orgId == activeId } ?? credentials.first
+    }
+
+    /// The display name of the active org.
+    var activeOrgName: String? {
+        activeCredential?.orgName
+    }
+
+    /// Whether the app is in an idle state where settings can be accessed.
+    var canAccessSettings: Bool {
+        switch status {
+        case .upToDate, .updateAvailable, .error, .readyToTransfer:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Auth
 
     func authenticate(accessCode: String) async throws {
         let response = try await apiClient.authenticate(accessCode: accessCode)
-        try KeychainService.saveCredentials(apiKey: response.apiKey, orgId: response.orgId)
+
+        // Check for duplicate org
+        if credentials.contains(where: { $0.orgId == response.orgId }) {
+            throw APIError.serverError("This aircraft is already added.")
+        }
+
+        let cred = OrgCredential(orgId: response.orgId, orgName: response.orgName, apiKey: response.apiKey)
+        credentials.append(cred)
+        activeOrgId = response.orgId
+
+        try KeychainService.saveAllCredentials(credentials)
+        try KeychainService.setActiveOrgId(response.orgId)
         isAuthenticated = true
+    }
+
+    // MARK: - Org Switching
+
+    func switchOrg(to orgId: String) async {
+        guard orgId != activeOrgId,
+              credentials.contains(where: { $0.orgId == orgId }) else { return }
+
+        activeOrgId = orgId
+        try? KeychainService.setActiveOrgId(orgId)
+
+        // Clear current state and check for updates with new org
+        manifest = nil
+        cancelDownload()
+        if hasLocalPackage() {
+            await downloadManager.deleteExistingPackage()
+        }
+        await checkForUpdates()
+    }
+
+    func removeOrg(_ orgId: String) {
+        credentials.removeAll { $0.orgId == orgId }
+        try? KeychainService.saveAllCredentials(credentials)
+
+        if credentials.isEmpty {
+            activeOrgId = nil
+            KeychainService.delete(key: Constants.Keychain.activeOrgId)
+            isAuthenticated = false
+            return
+        }
+
+        if activeOrgId == orgId {
+            activeOrgId = credentials.first?.orgId
+            if let newActive = activeOrgId {
+                try? KeychainService.setActiveOrgId(newActive)
+            }
+        }
     }
 
     // MARK: - Manifest
 
     func checkForUpdates() async {
+        guard let cred = activeCredential else {
+            status = .error("No active aircraft selected.")
+            return
+        }
+
         status = .checking
         do {
-            let fetched = try await apiClient.fetchManifest()
+            let fetched = try await apiClient.fetchManifest(apiKey: cred.apiKey)
             manifest = fetched
             UserDefaults.standard.set(
                 ISO8601DateFormatter().string(from: Date()),
@@ -58,9 +143,6 @@ class AppState: ObservableObject {
             let lastTransferred = UserDefaults.standard.string(
                 forKey: Constants.UserDefaultsKeys.lastTransferredAt
             )
-            // If a newer update was uploaded since our last download,
-            // delete the stale local ZIP so the pilot sees "Update Available"
-            // instead of "Ready to Transfer" with outdated data.
             if let uploadedAt = fetched.uploadedAt,
                let downloaded = lastDownloaded,
                uploadedAt > downloaded,
@@ -75,10 +157,7 @@ class AppState: ObservableObject {
                 hasLocalPackage: hasLocalPackage()
             )
         } catch let error as APIError where error.isUnauthorized {
-            // API key was revoked or invalid — clear credentials and
-            // return to access code screen so pilot can re-enter.
-            KeychainService.clearCredentials()
-            isAuthenticated = false
+            removeOrg(cred.orgId)
         } catch {
             status = .error(error.localizedDescription)
         }
