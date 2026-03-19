@@ -62,7 +62,10 @@ struct AccessCodeView: View {
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 32)
         }
+        .frame(maxWidth: 500)
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
     }
 
     private func submit() {

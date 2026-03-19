@@ -8,8 +8,10 @@ struct MainView: View {
             VStack(spacing: 20) {
                 statusContent
             }
+            .frame(maxWidth: 500)
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("JLW Loader")
             .task {
                 await appState.checkForUpdates()
@@ -44,7 +46,7 @@ struct MainView: View {
     // MARK: - State Views
 
     private var checkingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
             ProgressView()
                 .scaleEffect(1.5)
@@ -55,7 +57,7 @@ struct MainView: View {
     }
 
     private var updateAvailableView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Label("New Update Available", systemImage: "arrow.down.circle.fill")
@@ -64,7 +66,7 @@ struct MainView: View {
                 .foregroundColor(.green)
 
             if let manifest = appState.manifest {
-                VStack(spacing: 8) {
+                VStack(spacing: 12) {
                     if let filename = manifest.packageFilename {
                         Text(filename)
                             .font(.body.monospaced())
@@ -94,7 +96,7 @@ struct MainView: View {
     }
 
     private func downloadingView(progress: Double) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             if let manifest = appState.manifest {
@@ -133,7 +135,7 @@ struct MainView: View {
     }
 
     private var verifyingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
             ProgressView()
                 .scaleEffect(1.5)
@@ -144,7 +146,7 @@ struct MainView: View {
     }
 
     private var readyToTransferView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Label("Ready to Transfer", systemImage: "arrow.down.circle.fill")
@@ -152,7 +154,7 @@ struct MainView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.blue)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 if let filename = appState.lastDownloadedFilename {
                     Text(filename)
                         .font(.body.monospaced())
@@ -203,7 +205,7 @@ struct MainView: View {
     }
 
     private var upToDateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Label("Current", systemImage: "checkmark.circle.fill")
@@ -211,7 +213,7 @@ struct MainView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.green)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 if let filename = appState.lastTransferredFilename ?? appState.lastDownloadedFilename {
                     Text(filename)
                         .font(.body.monospaced())
@@ -236,7 +238,7 @@ struct MainView: View {
     }
 
     private func transferringView(progress: Double, detail: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Text("Transferring to USB...")
@@ -265,7 +267,7 @@ struct MainView: View {
     }
 
     private func transferCompleteView(fileCount: Int) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Label("Transfer Complete", systemImage: "checkmark.circle.fill")
@@ -273,7 +275,7 @@ struct MainView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.green)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text("\(fileCount) files written")
                     .font(.body)
                 if let filename = appState.lastTransferredFilename {
@@ -303,7 +305,7 @@ struct MainView: View {
     }
 
     private func errorView(message: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Spacer()
 
             Label("Error", systemImage: "exclamationmark.triangle.fill")
