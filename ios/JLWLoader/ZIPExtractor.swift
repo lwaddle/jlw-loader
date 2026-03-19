@@ -16,20 +16,20 @@ enum ZIPExtractor {
         var errorDescription: String? {
             switch self {
             case .invalidArchive:
-                return "The file is not a valid ZIP archive."
+                return "The update package is not a valid ZIP file."
             case .readFailed:
-                return "Failed to read the ZIP archive."
+                return "Could not read the update package."
             case .decompressionFailed(let name):
-                return "Failed to decompress entry: \(name)"
+                return "Failed to decompress file: \(name)"
             case .writeFailed(let name):
-                return "Failed to write entry: \(name)"
+                return "Failed to write file: \(name)"
             }
         }
     }
 
     // MARK: - ZIPEntry
 
-    struct ZIPEntry {
+    private struct ZIPEntry {
         let name: String
         let compressionMethod: UInt16
         let compressedSize: UInt32
@@ -220,18 +220,18 @@ enum ZIPExtractor {
     }
 
     /// Reads a little-endian UInt16 from data at the given offset.
-    static func readUInt16(from data: Data, at offset: Int) -> UInt16 {
+    private static func readUInt16(from data: Data, at offset: Int) -> UInt16 {
         data.withUnsafeBytes { buffer in
             let ptr = buffer.baseAddress!.advanced(by: offset)
-            return ptr.loadUnaligned(as: UInt16.self)
+            return ptr.loadUnaligned(as: UInt16.self).littleEndian
         }
     }
 
     /// Reads a little-endian UInt32 from data at the given offset.
-    static func readUInt32(from data: Data, at offset: Int) -> UInt32 {
+    private static func readUInt32(from data: Data, at offset: Int) -> UInt32 {
         data.withUnsafeBytes { buffer in
             let ptr = buffer.baseAddress!.advanced(by: offset)
-            return ptr.loadUnaligned(as: UInt32.self)
+            return ptr.loadUnaligned(as: UInt32.self).littleEndian
         }
     }
 }
