@@ -33,22 +33,24 @@ actor DownloadManager {
         let filename = manifest.packageFilename ?? downloadInfo.filename
         let destinationURL = Self.documentsDirectory.appendingPathComponent(filename)
 
-        // Download to temp file with progress via delegate
+        // Use delegate-based download for progress reporting.
+        // URLSession.download(for:) (async/await) does NOT call delegate progress methods.
         let delegate = DownloadProgressDelegate(onProgress: onProgress)
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
 
         let request = URLRequest(url: url)
-        let (tempURL, response) = try await session.download(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw DownloadError.downloadFailed
+        let tempURL: URL = try await withCheckedThrowingContinuation { continuation in
+            delegate.continuation = continuation
+            let task = session.downloadTask(with: request)
+            task.resume()
         }
+
+        onProgress(1.0)
 
         // Move temp file to Documents
         try FileManager.default.moveItem(at: tempURL, to: destinationURL)
-        onProgress(1.0)
         return destinationURL
     }
 
@@ -114,8 +116,11 @@ actor DownloadManager {
 
 // MARK: - Download Progress Delegate
 
-private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate {
     let onProgress: @Sendable (Double) -> Void
+    // Nonisolated(unsafe) because the continuation is set once before the task starts
+    // and consumed once when the task completes — no concurrent access.
+    nonisolated(unsafe) var continuation: CheckedContinuation<URL, Error>?
 
     init(onProgress: @Sendable @escaping (Double) -> Void) {
         self.onProgress = onProgress
@@ -138,6 +143,26 @@ private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelega
         downloadTask: URLSessionDownloadTask,
         didFinishDownloadingTo location: URL
     ) {
-        // Required delegate method — file is handled by the async download(for:) call
+        // Copy to a temp location we control (URLSession deletes the original after this returns)
+        let tempCopy = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".zip")
+        do {
+            try FileManager.default.copyItem(at: location, to: tempCopy)
+            continuation?.resume(returning: tempCopy)
+        } catch {
+            continuation?.resume(throwing: error)
+        }
+        continuation = nil
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        if let error = error {
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
     }
 }
