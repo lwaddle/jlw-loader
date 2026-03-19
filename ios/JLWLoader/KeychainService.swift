@@ -69,33 +69,6 @@ enum KeychainService {
         SecItemDelete(query as CFDictionary)
     }
 
-    /// Convenience: check if API key exists in Keychain.
-    static var hasCredentials: Bool {
-        read(key: Constants.Keychain.apiKey) != nil
-    }
-
-    /// Convenience: get stored API key.
-    static var apiKey: String? {
-        read(key: Constants.Keychain.apiKey)
-    }
-
-    /// Convenience: get stored org ID.
-    static var orgId: String? {
-        read(key: Constants.Keychain.orgId)
-    }
-
-    /// Save both API key and org ID after successful auth.
-    static func saveCredentials(apiKey: String, orgId: String) throws {
-        try save(key: Constants.Keychain.apiKey, value: apiKey)
-        try save(key: Constants.Keychain.orgId, value: orgId)
-    }
-
-    /// Clear all stored credentials.
-    static func clearCredentials() {
-        delete(key: Constants.Keychain.apiKey)
-        delete(key: Constants.Keychain.orgId)
-    }
-
     // MARK: - Multi-org credential management
 
     /// Load all stored org credentials.
