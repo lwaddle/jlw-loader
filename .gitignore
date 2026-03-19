@@ -12,3 +12,4 @@ EXAMPLE_DATA_LOAD/
 *.xcworkspace
 xcuserdata/
 DerivedData/
+.worktrees/
