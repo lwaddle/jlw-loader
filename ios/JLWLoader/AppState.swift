@@ -207,6 +207,25 @@ class AppState: ObservableObject {
         }
         defer { driveURL.stopAccessingSecurityScopedResource() }
 
+        // Verify the selected location is an external/removable drive
+        if let resourceValues = try? driveURL.resourceValues(
+            forKeys: [.volumeURLKey, .volumeIsRemovableKey, .volumeIsInternalKey]
+        ) {
+            let isRemovable = resourceValues.volumeIsRemovable ?? false
+            let isInternal = resourceValues.volumeIsInternal ?? true
+            if !isRemovable && isInternal {
+                status = .error("Please select a connected USB drive, not internal storage like iCloud or On My iPad.")
+                return
+            }
+
+            // Verify the user selected the drive root, not a subfolder within it
+            if let volumeURL = resourceValues.volume,
+               driveURL.standardizedFileURL != volumeURL.standardizedFileURL {
+                status = .error("Please select the USB drive itself, not a folder within it. In the file picker, tap the drive name and then tap Open.")
+                return
+            }
+        }
+
         // Estimate uncompressed size (~2x compressed for navigation data)
         let requiredBytes = Int64((manifest.packageSizeBytes ?? 0) * 2)
 
