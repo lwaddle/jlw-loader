@@ -86,7 +86,6 @@ struct MainView: View {
             .controlSize(.large)
 
             Spacer()
-            lastCheckedFooter
         }
     }
 
@@ -203,7 +202,6 @@ struct MainView: View {
             .controlSize(.large)
 
             Spacer()
-            lastCheckedFooter
         }
     }
 
