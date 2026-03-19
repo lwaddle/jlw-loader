@@ -27,6 +27,13 @@ enum APIError: LocalizedError {
     case unauthorized
     case noCredentials
 
+    var isUnauthorized: Bool {
+        switch self {
+        case .unauthorized, .noCredentials: return true
+        default: return false
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .invalidURL:
@@ -138,10 +145,6 @@ struct APIClient {
         }
 
         if httpResponse.statusCode == 401 {
-            // Try to extract error message
-            if let errorResp = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw APIError.serverError(errorResp.error)
-            }
             throw APIError.unauthorized
         }
 

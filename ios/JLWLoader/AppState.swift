@@ -64,6 +64,11 @@ class AppState: ObservableObject {
                 lastTransferredAt: lastTransferred,
                 hasLocalPackage: hasLocalPackage()
             )
+        } catch let error as APIError where error.isUnauthorized {
+            // API key was revoked or invalid — clear credentials and
+            // return to access code screen so pilot can re-enter.
+            KeychainService.clearCredentials()
+            isAuthenticated = false
         } catch {
             status = .error(error.localizedDescription)
         }
