@@ -30,10 +30,10 @@ struct MainView: View {
             verifyingView
         case .readyToTransfer:
             readyToTransferView
-        case .transferring(let progress, _):
-            Text("Transferring... \(Int(progress * 100))%")
+        case .transferring(let progress, let detail):
+            transferringView(progress: progress, detail: detail)
         case .transferComplete(let fileCount):
-            Text("Transfer complete: \(fileCount) files")
+            transferCompleteView(fileCount: fileCount)
         case .upToDate:
             upToDateView
         case .error(let message):
@@ -147,7 +147,7 @@ struct MainView: View {
         VStack(spacing: 16) {
             Spacer()
 
-            Label("Ready to Transfer", systemImage: "checkmark.circle.fill")
+            Label("Ready to Transfer", systemImage: "arrow.down.circle.fill")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.blue)
@@ -159,8 +159,58 @@ struct MainView: View {
                 }
                 Text("Downloaded \(appState.formattedRelativeDate(appState.lastDownloadedAt))")
                     .foregroundColor(.secondary)
-                Text("Verified ✓")
+                Text("Verified \u{2713}")
                     .foregroundColor(.green)
+            }
+
+            Text("Connect USB drive to iPhone\nusing your USB-C to USB-A adapter")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .font(.callout)
+                .padding(.top, 8)
+
+            Button {
+                appState.showDocumentPicker = true
+            } label: {
+                Text("Select USB Drive")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            Spacer()
+        }
+        .sheet(isPresented: $appState.showDocumentPicker) {
+            DocumentPickerView(
+                onPick: { url in
+                    appState.showDocumentPicker = false
+                    Task { await appState.transferToUSB(driveURL: url) }
+                },
+                onCancel: {
+                    appState.showDocumentPicker = false
+                }
+            )
+        }
+    }
+
+    private var upToDateView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Label("Current", systemImage: "checkmark.circle.fill")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.green)
+
+            VStack(spacing: 8) {
+                if let filename = appState.lastTransferredFilename ?? appState.lastDownloadedFilename {
+                    Text(filename)
+                        .font(.body.monospaced())
+                }
+                if let transferredAt = appState.lastTransferredAt {
+                    Text("Last transferred: \(appState.formattedRelativeDate(transferredAt))")
+                        .foregroundColor(.secondary)
+                }
             }
 
             Button {
@@ -176,33 +226,67 @@ struct MainView: View {
         }
     }
 
-    private var upToDateView: some View {
+    private func transferringView(progress: Double, detail: String) -> some View {
         VStack(spacing: 16) {
             Spacer()
 
-            Label("Current", systemImage: "checkmark.circle.fill")
+            Text("Transferring to USB...")
+                .font(.title3)
+                .fontWeight(.medium)
+
+            ProgressView(value: progress)
+                .progressViewStyle(.linear)
+                .padding(.horizontal)
+
+            Text(detail)
+                .font(.callout)
+                .foregroundColor(.secondary)
+
+            Text("\(Int(progress * 100))%")
+                .font(.body.monospacedDigit())
+                .foregroundColor(.secondary)
+
+            Label("Do not disconnect drive", systemImage: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .font(.callout)
+                .padding(.top, 8)
+
+            Spacer()
+        }
+    }
+
+    private func transferCompleteView(fileCount: Int) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Label("Transfer Complete", systemImage: "checkmark.circle.fill")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.green)
 
             VStack(spacing: 8) {
-                if let filename = appState.lastDownloadedFilename {
+                Text("\(fileCount) files written")
+                    .font(.body)
+                if let filename = appState.lastTransferredFilename {
                     Text(filename)
                         .font(.body.monospaced())
-                }
-                if let downloadedAt = appState.lastDownloadedAt {
-                    Text("Downloaded \(appState.formattedRelativeDate(downloadedAt))")
                         .foregroundColor(.secondary)
                 }
             }
 
+            Text("Drive is ready for the aircraft.\nYou can safely disconnect the USB drive.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .font(.callout)
+                .padding(.top, 8)
+
             Button {
-                Task { await appState.checkForUpdates() }
+                appState.transferComplete()
             } label: {
-                Text("Check for Updates")
+                Text("Done")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .controlSize(.large)
 
             Spacer()
