@@ -18,10 +18,11 @@ actor DownloadManager {
     /// Returns the local file URL on success.
     func download(
         manifest: Manifest,
+        apiKey: String,
         onProgress: @Sendable @escaping (Double) -> Void
     ) async throws -> URL {
         // Get presigned download URL
-        let downloadInfo = try await apiClient.getDownloadURL()
+        let downloadInfo = try await apiClient.getDownloadURL(apiKey: apiKey)
 
         guard let url = URL(string: downloadInfo.downloadUrl) else {
             throw DownloadError.invalidURL

@@ -89,24 +89,6 @@ struct APIClient {
         return try await post("/api/download", body: body, auth: .apiKey(apiKey))
     }
 
-    /// Backward-compatible overload — reads API key from Keychain.
-    /// TODO: Remove after AppState refactor (Task 9)
-    func fetchManifest() async throws -> Manifest {
-        guard let apiKey = KeychainService.apiKey ?? KeychainService.loadCredentials().first?.apiKey else {
-            throw APIError.noCredentials
-        }
-        return try await fetchManifest(apiKey: apiKey)
-    }
-
-    /// Backward-compatible overload — reads API key from Keychain.
-    /// TODO: Remove after AppState refactor (Task 9)
-    func getDownloadURL() async throws -> DownloadResponse {
-        guard let apiKey = KeychainService.apiKey ?? KeychainService.loadCredentials().first?.apiKey else {
-            throw APIError.noCredentials
-        }
-        return try await getDownloadURL(apiKey: apiKey)
-    }
-
     // MARK: - Private
 
     private enum Auth {

@@ -209,11 +209,15 @@ class AppState: ObservableObject {
 
     func downloadUpdate() async {
         guard let manifest = manifest else { return }
+        guard let apiKey = activeCredential?.apiKey else {
+            status = .error("No active aircraft selected.")
+            return
+        }
 
         status = .downloading(progress: 0)
 
         do {
-            let fileURL = try await downloadManager.download(manifest: manifest) { [weak self] progress in
+            let fileURL = try await downloadManager.download(manifest: manifest, apiKey: apiKey) { [weak self] progress in
                 Task { @MainActor in
                     self?.status = .downloading(progress: progress)
                 }
@@ -230,7 +234,7 @@ class AppState: ObservableObject {
                     // Auto-retry once
                     try? FileManager.default.removeItem(at: fileURL)
                     status = .downloading(progress: 0)
-                    let retryURL = try await downloadManager.download(manifest: manifest) { [weak self] progress in
+                    let retryURL = try await downloadManager.download(manifest: manifest, apiKey: apiKey) { [weak self] progress in
                         Task { @MainActor in
                             self?.status = .downloading(progress: progress)
                         }
