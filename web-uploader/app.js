@@ -300,6 +300,10 @@ async function revertToPackage(packageFilename) {
     return;
   }
 
+  // Disable all revert buttons to prevent double-clicks
+  var buttons = historyList.querySelectorAll('.btn-revert');
+  buttons.forEach(function (btn) { btn.disabled = true; });
+
   try {
     await apiCall('POST', '/api/revert', { packageFilename: packageFilename });
     currentManifest = await apiCall('GET', '/api/manifest');
@@ -308,6 +312,7 @@ async function revertToPackage(packageFilename) {
     showResult('success', 'Package reverted to ' + packageFilename);
   } catch (err) {
     showResult('error', 'Failed to revert: ' + err.message);
+    buttons.forEach(function (btn) { btn.disabled = false; });
   }
 }
 

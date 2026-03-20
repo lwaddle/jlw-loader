@@ -13,7 +13,7 @@
  * See README.md for setup and deployment instructions.
  */
 
-import { Env } from './types';
+import { Env, HistoryEntry, ManifestData } from './types';
 import {
   findByAccessCode,
   findOrgByApiKey,
@@ -281,24 +281,19 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
 
   // Read existing manifest to preserve history
   const existingObj = await env.UPDATES_BUCKET.get(`orgs/${admin.orgId}/manifest.json`);
-  let history: Array<{
-    packageFilename: string;
-    packageSizeBytes: number;
-    packageChecksum: string;
-    uploadedAt: string;
-  }> = [];
+  let history: HistoryEntry[] = [];
 
   if (existingObj) {
-    const existing = await existingObj.json<Record<string, unknown>>();
+    const existing = await existingObj.json<ManifestData>();
 
     // Push current active package into history (if one exists)
     if (existing.uploadedAt && existing.packageFilename) {
       history = Array.isArray(existing.history) ? [...existing.history] : [];
       history.unshift({
-        packageFilename: existing.packageFilename as string,
-        packageSizeBytes: existing.packageSizeBytes as number,
-        packageChecksum: existing.packageChecksum as string,
-        uploadedAt: existing.uploadedAt as string,
+        packageFilename: existing.packageFilename,
+        packageSizeBytes: existing.packageSizeBytes,
+        packageChecksum: existing.packageChecksum,
+        uploadedAt: existing.uploadedAt,
       });
 
       // Trim to 5 and delete evicted ZIPs
@@ -313,6 +308,8 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
     }
   }
 
+  // Prevent client from injecting history via the request body
+  delete incoming.history;
   const manifest = { ...incoming, history };
 
   await env.UPDATES_BUCKET.put(
@@ -354,13 +351,8 @@ async function handleRevert(request: Request, env: Env): Promise<Response> {
     return errorResponse('No manifest found', 404);
   }
 
-  const manifest = await manifestObj.json<Record<string, unknown>>();
-  const history: Array<{
-    packageFilename: string;
-    packageSizeBytes: number;
-    packageChecksum: string;
-    uploadedAt: string;
-  }> = Array.isArray(manifest.history) ? [...(manifest.history as any[])] : [];
+  const manifest = await manifestObj.json<ManifestData>();
+  const history: HistoryEntry[] = Array.isArray(manifest.history) ? [...manifest.history] : [];
 
   // Find the requested entry in history
   const idx = history.findIndex(h => h.packageFilename === body.packageFilename);
@@ -373,10 +365,10 @@ async function handleRevert(request: Request, env: Env): Promise<Response> {
 
   if (manifest.uploadedAt && manifest.packageFilename) {
     history.unshift({
-      packageFilename: manifest.packageFilename as string,
-      packageSizeBytes: manifest.packageSizeBytes as number,
-      packageChecksum: manifest.packageChecksum as string,
-      uploadedAt: manifest.uploadedAt as string,
+      packageFilename: manifest.packageFilename,
+      packageSizeBytes: manifest.packageSizeBytes,
+      packageChecksum: manifest.packageChecksum,
+      uploadedAt: manifest.uploadedAt,
     });
   }
 

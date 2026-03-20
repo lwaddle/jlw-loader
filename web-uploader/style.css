@@ -572,9 +572,14 @@ button[type="submit"]:disabled {
   white-space: nowrap;
 }
 
-.btn-revert:hover {
+.btn-revert:hover:not(:disabled) {
   background: var(--amber-dim);
   border-color: var(--amber);
+}
+
+.btn-revert:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── DROP ZONE ─────────────────────────────────────────────────── */
