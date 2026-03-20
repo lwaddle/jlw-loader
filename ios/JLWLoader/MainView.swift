@@ -62,6 +62,11 @@ struct MainView: View {
                     appState.pendingDriveURL = nil
                 }
             }
+            .alert("No New Updates", isPresented: $appState.showNoUpdateAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Your software is up to date.")
+            }
         }
     }
 
