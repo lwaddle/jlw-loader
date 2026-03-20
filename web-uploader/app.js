@@ -48,6 +48,73 @@ const historyCard  = document.getElementById('history-card');
 const historyList  = document.getElementById('history-list');
 const historyEmpty = document.getElementById('history-empty');
 
+// ── CONFIRM MODAL ────────────────────────────────────────────
+
+const modalEl        = document.getElementById('confirm-modal');
+const modalIcon      = document.getElementById('modal-icon');
+const modalTitle     = document.getElementById('modal-title');
+const modalMessage   = document.getElementById('modal-message');
+const modalCancel    = document.getElementById('modal-cancel');
+const modalConfirm   = document.getElementById('modal-confirm');
+
+/**
+ * Show a confirmation modal. Returns a Promise<boolean>.
+ *
+ * Options:
+ *   title         — heading text
+ *   message       — body text
+ *   confirmLabel  — confirm button text (default "Confirm")
+ *   cancelLabel   — cancel button text (default "Cancel")
+ *   variant       — "warning" for amber/destructive style (default blue)
+ */
+function confirmModal(opts) {
+  return new Promise(function (resolve) {
+    modalTitle.textContent   = opts.title || 'Are you sure?';
+    modalMessage.textContent = opts.message || '';
+    modalConfirm.textContent = opts.confirmLabel || 'Confirm';
+    modalCancel.textContent  = opts.cancelLabel || 'Cancel';
+
+    var variant = opts.variant || 'default';
+    modalIcon.className   = 'modal-icon warning';
+    modalConfirm.className = 'modal-btn modal-btn-confirm' + (variant === 'warning' ? ' warning' : '');
+
+    modalEl.hidden = false;
+    modalEl.classList.remove('closing');
+    modalConfirm.focus();
+
+    function close(result) {
+      modalEl.classList.add('closing');
+      setTimeout(function () {
+        modalEl.hidden = true;
+        modalEl.classList.remove('closing');
+      }, 150);
+      cleanup();
+      resolve(result);
+    }
+
+    function onConfirm() { close(true); }
+    function onCancel()  { close(false); }
+    function onKey(e) {
+      if (e.key === 'Escape') onCancel();
+    }
+    function onBackdrop(e) {
+      if (e.target === modalEl) onCancel();
+    }
+
+    function cleanup() {
+      modalConfirm.removeEventListener('click', onConfirm);
+      modalCancel.removeEventListener('click', onCancel);
+      modalEl.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+    }
+
+    modalConfirm.addEventListener('click', onConfirm);
+    modalCancel.addEventListener('click', onCancel);
+    modalEl.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 // ── FILENAME GENERATION ──────────────────────────────────────────
 
 /**
@@ -308,9 +375,13 @@ function renderHistory() {
 }
 
 async function revertToPackage(packageFilename) {
-  if (!confirm('Are you sure you want to make ' + packageFilename + ' the active package?\n\nAll pilots will see this as a new update.')) {
-    return;
-  }
+  var confirmed = await confirmModal({
+    title: 'Make Active',
+    message: 'Make ' + packageFilename + ' the active package? All pilots will see this as a new update.',
+    confirmLabel: 'Make Active',
+    variant: 'warning',
+  });
+  if (!confirmed) return;
 
   // Disable all revert buttons to prevent double-clicks
   var buttons = historyList.querySelectorAll('.btn-revert');
@@ -389,10 +460,14 @@ copyCodeBtn.addEventListener('click', function () {
   });
 });
 
-regenerateCodeBtn.addEventListener('click', function () {
-  if (confirm('Generate a new access code?\n\nThe current code will stop working. You will need to share the new code with your pilots.')) {
-    regenerateCode(false);
-  }
+regenerateCodeBtn.addEventListener('click', async function () {
+  var confirmed = await confirmModal({
+    title: 'Generate New Code',
+    message: 'The current code will stop working. You will need to share the new code with your pilots.',
+    confirmLabel: 'Generate',
+    variant: 'warning',
+  });
+  if (confirmed) regenerateCode(false);
 });
 
 // ── FOLDER READING ───────────────────────────────────────────────

@@ -31,7 +31,8 @@ import { createPresignedGetUrl, createPresignedPutUrl } from './presign';
 
 const ALLOWED_ORIGINS = new Set([
   'https://loader.jlwav.com',
-  'http://localhost:8787',       // local dev
+  'http://localhost:8787',       // local dev (worker serves pages)
+  'http://localhost:8080',       // local dev (separate web server)
 ]);
 
 function corsHeaders(request: Request): Record<string, string> {
