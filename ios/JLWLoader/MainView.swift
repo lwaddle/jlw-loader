@@ -246,10 +246,6 @@ struct MainView: View {
                 .foregroundColor(.green)
 
             VStack(spacing: 12) {
-                if let filename = appState.lastTransferredFilename ?? appState.lastDownloadedFilename {
-                    Text(filename)
-                        .font(.body.monospaced())
-                }
                 if let transferredAt = appState.lastTransferredAt {
                     Text("Last transferred: \(appState.formattedRelativeDate(transferredAt))")
                         .foregroundColor(.secondary)
@@ -318,15 +314,8 @@ struct MainView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.green)
 
-            VStack(spacing: 12) {
-                Text("\(fileCount) files written")
-                    .font(.body)
-                if let filename = appState.lastTransferredFilename {
-                    Text(filename)
-                        .font(.body.monospaced())
-                        .foregroundColor(.secondary)
-                }
-            }
+            Text("\(fileCount) files written")
+                .font(.body)
 
             Text("Drive is ready for the aircraft.\nYou can safely disconnect the USB drive.")
                 .multilineTextAlignment(.center)
