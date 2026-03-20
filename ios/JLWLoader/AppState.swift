@@ -22,6 +22,7 @@ class AppState: ObservableObject {
     @Published var activeOrgId: String?
     @Published var showEraseConfirmation: Bool = false
     @Published var pendingDriveURL: URL?
+    @Published var showNoUpdateAlert: Bool = false
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager
@@ -146,6 +147,7 @@ class AppState: ObservableObject {
             return
         }
 
+        let previousStatus = status
         status = .checking
         do {
             let fetched = try await apiClient.fetchManifest(apiKey: cred.apiKey)
@@ -181,6 +183,10 @@ class AppState: ObservableObject {
                 lastTransferredAt: lastTransferred,
                 hasLocalPackage: hasLocalPackage()
             )
+            if status == .upToDate,
+               previousStatus == .upToDate || previousStatus == .readyToTransfer {
+                showNoUpdateAlert = true
+            }
         } catch let error as APIError where error.isUnauthorized {
             removeOrg(cred.orgId)
             if isAuthenticated {
