@@ -203,7 +203,7 @@ struct MainView: View {
                     .foregroundColor(.green)
             }
 
-            Text("Connect USB drive to iPhone\nusing your USB-C to USB-A adapter")
+            Text("Connect USB drive\nusing your USB-C to USB-A adapter")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .font(.callout)
