@@ -197,11 +197,7 @@ struct MainView: View {
                 .foregroundColor(.blue)
 
             VStack(spacing: 12) {
-                if let filename = appState.lastDownloadedFilename {
-                    Text(filename)
-                        .font(.body.monospaced())
-                }
-                Text("Downloaded \(appState.formattedRelativeDate(appState.lastDownloadedAt))")
+                Text("Downloaded")
                     .foregroundColor(.secondary)
                 Text("Verified \u{2713}")
                     .foregroundColor(.green)
