@@ -114,7 +114,7 @@ struct MainView: View {
             if let manifest = appState.manifest {
                 VStack(spacing: 12) {
                     if let uploadedAt = manifest.uploadedAt {
-                        Text("Uploaded \(appState.formattedRelativeDate(uploadedAt))")
+                        Text("Updated \(appState.formattedRelativeDate(uploadedAt))")
                             .foregroundColor(.secondary)
                     }
                     if let size = manifest.formattedSize {
