@@ -96,6 +96,13 @@ class AppState: ObservableObject {
         // Clear current state and check for updates with new org
         manifest = nil
         cancelDownload()
+
+        // Clear org-specific timestamps so new org starts fresh
+        UserDefaults.standard.removeObject(forKey: Constants.UserDefaultsKeys.lastDownloadedAt)
+        UserDefaults.standard.removeObject(forKey: Constants.UserDefaultsKeys.lastDownloadedFilename)
+        UserDefaults.standard.removeObject(forKey: Constants.UserDefaultsKeys.lastTransferredAt)
+        UserDefaults.standard.removeObject(forKey: Constants.UserDefaultsKeys.lastTransferredFilename)
+
         if hasLocalPackage() {
             await downloadManager.deleteExistingPackage()
         }
@@ -158,6 +165,9 @@ class AppState: ObservableObject {
             )
         } catch let error as APIError where error.isUnauthorized {
             removeOrg(cred.orgId)
+            if isAuthenticated {
+                await checkForUpdates()
+            }
         } catch {
             status = .error(error.localizedDescription)
         }
