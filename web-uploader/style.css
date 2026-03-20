@@ -793,9 +793,9 @@ button[type="submit"]:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  font-size: 13px;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
   color: var(--text-muted);
   background: none;
   border: 1px solid transparent;
