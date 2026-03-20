@@ -97,11 +97,20 @@ enum ZIPExtractor {
         }
 
         var extracted = 0
+        let destinationPath = destination.standardizedFileURL.path
         for entry in fileEntries {
+            // Guard against path traversal
+            guard !entry.name.contains("../"),
+                  !entry.name.contains("..\\"),
+                  !entry.name.hasPrefix("/"),
+                  !entry.name.hasPrefix("\\") else {
+                throw ExtractionError.invalidArchive("Path traversal in entry: \(entry.name)")
+            }
+
             let outputURL = destination.appendingPathComponent(entry.name)
 
-            // Guard against path traversal (e.g., "../../etc/something")
-            guard !entry.name.contains("../") else {
+            // Verify resolved path stays within destination
+            guard outputURL.standardizedFileURL.path.hasPrefix(destinationPath) else {
                 throw ExtractionError.invalidArchive("Path traversal in entry: \(entry.name)")
             }
 
