@@ -21,7 +21,7 @@ class AppState: ObservableObject {
     @Published var credentials: [OrgCredential] = []
     @Published var activeOrgId: String?
     @Published var showEraseConfirmation: Bool = false
-    var pendingDriveURL: URL?
+    @Published var pendingDriveURL: URL?
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager

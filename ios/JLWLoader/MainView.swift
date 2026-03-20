@@ -57,6 +57,11 @@ struct MainView: View {
                     Text("All data on \(appState.driveName(for: url)) will be permanently erased and replaced with the database update.")
                 }
             }
+            .onChange(of: appState.showEraseConfirmation) { showing in
+                if !showing {
+                    appState.pendingDriveURL = nil
+                }
+            }
         }
     }
 
