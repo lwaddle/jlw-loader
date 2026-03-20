@@ -9,6 +9,11 @@ struct MainView: View {
             VStack(spacing: 20) {
                 statusContent
             }
+            .alert("No New Updates", isPresented: $appState.showNoUpdateAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Your software is up to date.")
+            }
             .frame(maxWidth: 500)
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,11 +66,6 @@ struct MainView: View {
                 if !showing {
                     appState.pendingDriveURL = nil
                 }
-            }
-            .alert("No New Updates", isPresented: $appState.showNoUpdateAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Your software is up to date.")
             }
         }
     }

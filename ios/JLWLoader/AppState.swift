@@ -183,7 +183,7 @@ class AppState: ObservableObject {
                 lastTransferredAt: lastTransferred,
                 hasLocalPackage: hasLocalPackage()
             )
-            if status == .upToDate,
+            if (status == .upToDate || status == .readyToTransfer),
                previousStatus == .upToDate || previousStatus == .readyToTransfer {
                 showNoUpdateAlert = true
             }
