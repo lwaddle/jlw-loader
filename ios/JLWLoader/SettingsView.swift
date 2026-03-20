@@ -4,6 +4,7 @@ struct SettingsView: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var showAddAircraft = false
+    @State private var showSignOutConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,58 @@ struct SettingsView: View {
                     }
                     .onDelete(perform: deleteOrg)
                 }
+
+                Section("Support") {
+                    Link(destination: URL(string: "https://lwaddle.github.io/jlw-loader/support")!) {
+                        HStack {
+                            Text("Support")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Link(destination: URL(string: "https://lwaddle.github.io/jlw-loader/privacy")!) {
+                        HStack {
+                            Text("Privacy Policy")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                Section("Account") {
+                    Button(role: .destructive) {
+                        showSignOutConfirmation = true
+                    } label: {
+                        Text("Sign Out")
+                    }
+                }
+
+                Section {
+                } footer: {
+                    HStack {
+                        Spacer()
+                        Text("JLW Loader v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .alert("Sign Out", isPresented: $showSignOutConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Sign Out", role: .destructive) {
+                    appState.signOut()
+                    dismiss()
+                }
+            } message: {
+                Text("This will remove all aircraft and sign you out.")
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
