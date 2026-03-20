@@ -44,6 +44,9 @@ const accessCodeError   = document.getElementById('access-code-error');
 const copyCodeBtn       = document.getElementById('copy-code-btn');
 const regenerateCodeBtn = document.getElementById('regenerate-code-btn');
 const orgDropdown  = document.getElementById('org-dropdown');
+const historyCard  = document.getElementById('history-card');
+const historyList  = document.getElementById('history-list');
+const historyEmpty = document.getElementById('history-empty');
 
 // ── FILENAME GENERATION ──────────────────────────────────────────
 
@@ -179,6 +182,7 @@ function showDashboard() {
   loginView.hidden = true;
   dashboardView.hidden = false;
   renderManifest();
+  renderHistory();
 }
 
 function renderManifest() {
@@ -242,6 +246,69 @@ function renderManifest() {
     div.appendChild(valueSpan);
     pkgDetails.appendChild(div);
   });
+}
+
+function renderHistory() {
+  var history = (currentManifest && currentManifest.history) || [];
+
+  if (history.length === 0) {
+    historyCard.hidden = true;
+    return;
+  }
+
+  historyCard.hidden = false;
+  historyEmpty.hidden = true;
+
+  // Clear previous items
+  while (historyList.firstChild) {
+    historyList.removeChild(historyList.firstChild);
+  }
+
+  history.forEach(function (entry) {
+    var item = document.createElement('div');
+    item.className = 'history-item';
+
+    var info = document.createElement('div');
+    info.className = 'history-item-info';
+
+    var name = document.createElement('span');
+    name.className = 'history-item-name';
+    name.textContent = entry.packageFilename;
+
+    var meta = document.createElement('span');
+    meta.className = 'history-item-meta';
+    meta.textContent = formatBytes(entry.packageSizeBytes) + ' \u00B7 ' + formatRelativeDate(entry.uploadedAt);
+
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    var btn = document.createElement('button');
+    btn.className = 'btn-revert';
+    btn.textContent = 'Make Active';
+    btn.addEventListener('click', function () {
+      revertToPackage(entry.packageFilename);
+    });
+
+    item.appendChild(info);
+    item.appendChild(btn);
+    historyList.appendChild(item);
+  });
+}
+
+async function revertToPackage(packageFilename) {
+  if (!confirm('Are you sure you want to make ' + packageFilename + ' the active package?\n\nAll pilots will see this as a new update.')) {
+    return;
+  }
+
+  try {
+    await apiCall('POST', '/api/revert', { packageFilename: packageFilename });
+    currentManifest = await apiCall('GET', '/api/manifest');
+    renderManifest();
+    renderHistory();
+    showResult('success', 'Package reverted to ' + packageFilename);
+  } catch (err) {
+    showResult('error', 'Failed to revert: ' + err.message);
+  }
 }
 
 // ── ACCESS CODE ──────────────────────────────────────────────────
@@ -530,6 +597,7 @@ uploadForm.addEventListener('submit', async (e) => {
     // Done — refresh manifest and show success
     currentManifest = await apiCall('GET', '/api/manifest');
     renderManifest();
+    renderHistory();
     showResult('success', 'Package uploaded successfully.');
     resetUploadUI();
 
