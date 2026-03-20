@@ -130,6 +130,14 @@ class AppState: ObservableObject {
         }
     }
 
+    func signOut() {
+        credentials.removeAll()
+        activeOrgId = nil
+        try? KeychainService.saveAllCredentials([])
+        KeychainService.delete(key: Constants.Keychain.activeOrgId)
+        isAuthenticated = false
+    }
+
     // MARK: - Manifest
 
     func checkForUpdates() async {

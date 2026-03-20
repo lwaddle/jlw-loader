@@ -112,6 +112,30 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(status, .updateAvailable)
     }
 
+    // MARK: - Sign Out
+
+    @MainActor
+    func testSignOutClearsAllCredentials() {
+        let appState = AppState()
+
+        // Manually set up state as if two orgs were authenticated
+        appState.credentials = [
+            OrgCredential(orgId: "org1", orgName: "N12345", apiKey: "key1"),
+            OrgCredential(orgId: "org2", orgName: "N67890", apiKey: "key2")
+        ]
+        appState.activeOrgId = "org1"
+        appState.isAuthenticated = true
+
+        XCTAssertEqual(appState.credentials.count, 2)
+        XCTAssertTrue(appState.isAuthenticated)
+
+        appState.signOut()
+
+        XCTAssertEqual(appState.credentials.count, 0)
+        XCTAssertNil(appState.activeOrgId)
+        XCTAssertFalse(appState.isAuthenticated)
+    }
+
     func testStatusUpToDateWhenTransferred() {
         let manifest = Manifest(
             orgId: "test",
