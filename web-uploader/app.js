@@ -45,6 +45,23 @@ const copyCodeBtn       = document.getElementById('copy-code-btn');
 const regenerateCodeBtn = document.getElementById('regenerate-code-btn');
 const orgDropdown  = document.getElementById('org-dropdown');
 
+// ── FILENAME GENERATION ──────────────────────────────────────────
+
+/**
+ * Generate a timestamp-based filename: update-YYYY-MM-DD-HHMMSS.zip
+ */
+function generatePackageFilename() {
+  var now = new Date();
+  var pad = function (n) { return n.toString().padStart(2, '0'); };
+  return 'update-' + now.getFullYear()
+    + '-' + pad(now.getMonth() + 1)
+    + '-' + pad(now.getDate())
+    + '-' + pad(now.getHours())
+    + pad(now.getMinutes())
+    + pad(now.getSeconds())
+    + '.zip';
+}
+
 // ── CLERK INIT ────────────────────────────────────────────────────
 
 let clerk = null;
@@ -377,9 +394,7 @@ async function buildZipFromFiles(fileEntries, onProgress) {
     }
   );
 
-  var today = new Date().toISOString().slice(0, 10);
-  var filename = 'update-' + today + '.zip';
-  return new File([blob], filename, { type: 'application/zip' });
+  return new File([blob], generatePackageFilename(), { type: 'application/zip' });
 }
 
 // ── FILE SELECTION ────────────────────────────────────────────────
@@ -494,7 +509,8 @@ uploadForm.addEventListener('submit', async (e) => {
 
     // Step 2: Get presigned upload URL
     setProgress('uploading', 'Requesting upload URL...', 0);
-    const urlResp = await apiCall('POST', '/api/upload-url', { filename: selectedFile.name });
+    const uploadFilename = generatePackageFilename();
+    const urlResp = await apiCall('POST', '/api/upload-url', { filename: uploadFilename });
 
     // Step 3: Upload ZIP to R2
     setProgress('uploading', 'Uploading to R2...', 0);
@@ -504,7 +520,7 @@ uploadForm.addEventListener('submit', async (e) => {
     // Step 4: Update manifest
     setProgress('uploading', 'Updating manifest...', 100);
     await apiCall('PATCH', '/api/manifest', {
-      packageFilename: selectedFile.name,
+      packageFilename: uploadFilename,
       packageSizeBytes: selectedFile.size,
       packageChecksum: 'sha256:' + checksum,
       uploadedAt: new Date().toISOString(),
