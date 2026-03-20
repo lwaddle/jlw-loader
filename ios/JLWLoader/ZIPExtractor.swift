@@ -97,7 +97,8 @@ enum ZIPExtractor {
         }
 
         var extracted = 0
-        let destinationPath = destination.standardizedFileURL.path
+        let resolvedDestination = destination.standardizedFileURL
+        let destinationPath = resolvedDestination.path
         for entry in fileEntries {
             // Guard against path traversal
             guard !entry.name.contains("../"),
@@ -107,7 +108,7 @@ enum ZIPExtractor {
                 throw ExtractionError.invalidArchive("Path traversal in entry: \(entry.name)")
             }
 
-            let outputURL = destination.appendingPathComponent(entry.name)
+            let outputURL = resolvedDestination.appendingPathComponent(entry.name)
 
             // Verify resolved path stays within destination
             guard outputURL.standardizedFileURL.path.hasPrefix(destinationPath) else {
