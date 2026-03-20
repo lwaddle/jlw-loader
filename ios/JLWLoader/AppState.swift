@@ -434,8 +434,10 @@ class AppState: ObservableObject {
     }
 
     func formattedRelativeDate(_ iso: String?) -> String {
+        let isoFractional = ISO8601DateFormatter()
+        isoFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let iso = iso,
-              let date = ISO8601DateFormatter().date(from: iso) else {
+              let date = isoFractional.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else {
             return "Never"
         }
         let formatter = RelativeDateTimeFormatter()
