@@ -59,26 +59,25 @@
         </div>
       </section>
 
-      <!-- Access Codes -->
-      <section class="card" id="access-codes-card">
+      <!-- Access Code -->
+      <section class="card" id="access-code-card">
         <div class="card-header">
-          <h2>Access Codes</h2>
-          <span id="codes-count" class="status-badge empty">0</span>
+          <h2>Access Code</h2>
         </div>
-        <div id="codes-list">
-          <!-- Populated by JS -->
+        <div id="access-code-display" class="access-code-display" hidden>
+          <div class="access-code-row">
+            <span id="access-code-value" class="access-code-value"></span>
+            <button id="copy-code-btn" class="btn-copy" title="Copy access code">&#x2398;</button>
+          </div>
+          <p class="muted">Share this code with your pilots to grant access.</p>
         </div>
-        <div id="codes-empty" class="pkg-empty" hidden>
-          <p>No access codes yet.</p>
-          <p class="muted">Create a code to share with your pilots.</p>
+        <div id="access-code-loading" class="pkg-empty">
+          <p>Loading access code...</p>
         </div>
-        <div class="codes-add">
-          <form id="add-code-form" class="add-code-form">
-            <input type="text" id="new-code-input" placeholder="e.g. JLW-7294" maxlength="20" required>
-            <button type="button" id="add-code-btn" class="btn-add-code">Add Code</button>
-          </form>
-          <div id="codes-error" class="error-msg" hidden></div>
+        <div class="access-code-actions">
+          <button id="regenerate-code-btn" class="btn-regenerate">Generate New Code</button>
         </div>
+        <div id="access-code-error" class="error-msg" hidden></div>
       </section>
 
       <!-- Upload New Package -->

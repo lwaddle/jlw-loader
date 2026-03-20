@@ -15,7 +15,6 @@ const API_BASE = CONFIG.workerUrl.replace(/\/+$/, ''); // strip trailing slash
 // ── STATE ─────────────────────────────────────────────────────────
 let currentManifest = null;
 let selectedFile = null;
-let accessCodes = [];
 
 // ── DOM REFS ──────────────────────────────────────────────────────
 const loginView     = document.getElementById('login-view');
@@ -38,12 +37,12 @@ const progressLabel = document.getElementById('progress-label');
 const progressPct   = document.getElementById('progress-pct');
 const progressBar   = document.getElementById('progress-bar');
 const uploadResult  = document.getElementById('upload-result');
-const codesList    = document.getElementById('codes-list');
-const codesCount   = document.getElementById('codes-count');
-const codesEmpty   = document.getElementById('codes-empty');
-const addCodeForm  = document.getElementById('add-code-form');
-const newCodeInput = document.getElementById('new-code-input');
-const codesError   = document.getElementById('codes-error');
+const accessCodeDisplay = document.getElementById('access-code-display');
+const accessCodeValue   = document.getElementById('access-code-value');
+const accessCodeLoading = document.getElementById('access-code-loading');
+const accessCodeError   = document.getElementById('access-code-error');
+const copyCodeBtn       = document.getElementById('copy-code-btn');
+const regenerateCodeBtn = document.getElementById('regenerate-code-btn');
 const orgDropdown  = document.getElementById('org-dropdown');
 
 // ── CLERK INIT ────────────────────────────────────────────────────
@@ -108,8 +107,7 @@ async function loadDashboard() {
   try {
     const manifest = await apiCall('GET', '/api/manifest');
     currentManifest = manifest;
-    const codesResp = await apiCall('GET', '/api/access-codes');
-    accessCodes = codesResp.codes || [];
+    await loadAccessCode();
     showDashboard();
   } catch (err) {
     console.error('Failed to load manifest:', err);
@@ -164,7 +162,6 @@ function showDashboard() {
   loginView.hidden = true;
   dashboardView.hidden = false;
   renderManifest();
-  renderAccessCodes();
 }
 
 function renderManifest() {
@@ -230,91 +227,70 @@ function renderManifest() {
   });
 }
 
-function renderAccessCodes() {
-  while (codesList.firstChild) {
-    codesList.removeChild(codesList.firstChild);
-  }
+// ── ACCESS CODE ──────────────────────────────────────────────────
 
-  codesCount.textContent = accessCodes.length;
-  codesCount.className = 'status-badge ' + (accessCodes.length > 0 ? 'active' : 'empty');
+var currentAccessCode = null;
 
-  if (accessCodes.length === 0) {
-    codesList.hidden = true;
-    codesEmpty.hidden = false;
-    return;
-  }
-
-  codesList.hidden = false;
-  codesEmpty.hidden = true;
-
-  accessCodes.forEach(function (item) {
-    var row = document.createElement('div');
-    row.className = 'code-row';
-
-    var codeVal = document.createElement('span');
-    codeVal.className = 'code-value';
-    codeVal.textContent = item.accessCode;
-
-    var actions = document.createElement('div');
-    actions.className = 'code-actions';
-
-    var copyBtn = document.createElement('button');
-    copyBtn.className = 'btn-copy';
-    copyBtn.title = 'Copy access code';
-    copyBtn.textContent = '\u2398';
-    copyBtn.addEventListener('click', function () {
-      navigator.clipboard.writeText(item.accessCode).then(function () {
-        copyBtn.textContent = '\u2713';
-        setTimeout(function () { copyBtn.textContent = '\u2398'; }, 1500);
-      });
-    });
-
-    var deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn-icon';
-    deleteBtn.title = 'Delete access code';
-    deleteBtn.textContent = '\u00D7';
-    deleteBtn.addEventListener('click', function () {
-      if (confirm('Delete access code "' + item.accessCode + '"? Pilots using this code will lose access.')) {
-        deleteCode(item.accessCode);
-      }
-    });
-
-    actions.appendChild(copyBtn);
-    actions.appendChild(deleteBtn);
-
-    row.appendChild(codeVal);
-    row.appendChild(actions);
-    codesList.appendChild(row);
-  });
-}
-
-document.getElementById('add-code-btn').addEventListener('click', async function () {
-  codesError.hidden = true;
-
-  var code = newCodeInput.value.trim().toUpperCase();
-  if (!code) return;
+async function loadAccessCode() {
+  accessCodeDisplay.hidden = true;
+  accessCodeLoading.hidden = false;
+  accessCodeError.hidden = true;
 
   try {
-    var resp = await apiCall('POST', '/api/access-codes', { accessCode: code });
-    accessCodes.push({ accessCode: resp.accessCode });
-    renderAccessCodes();
-    newCodeInput.value = '';
+    var codesResp = await apiCall('GET', '/api/access-codes');
+    var codes = codesResp.codes || [];
+
+    if (codes.length === 1) {
+      currentAccessCode = codes[0].accessCode;
+      showAccessCode(currentAccessCode);
+    } else {
+      // No codes or multiple codes — regenerate to get a single fresh one
+      await regenerateCode(true);
+    }
   } catch (err) {
-    codesError.textContent = err.message;
-    codesError.hidden = false;
+    accessCodeLoading.hidden = true;
+    accessCodeError.textContent = 'Failed to load access code: ' + err.message;
+    accessCodeError.hidden = false;
   }
+}
+
+function showAccessCode(code) {
+  accessCodeValue.textContent = code;
+  accessCodeDisplay.hidden = false;
+  accessCodeLoading.hidden = true;
+}
+
+async function regenerateCode(silent) {
+  accessCodeError.hidden = true;
+  if (!silent) {
+    accessCodeDisplay.hidden = true;
+    accessCodeLoading.hidden = false;
+  }
+
+  try {
+    var resp = await apiCall('POST', '/api/access-codes/regenerate');
+    currentAccessCode = resp.accessCode;
+    showAccessCode(currentAccessCode);
+  } catch (err) {
+    accessCodeLoading.hidden = true;
+    accessCodeError.textContent = 'Failed to generate code: ' + err.message;
+    accessCodeError.hidden = false;
+  }
+}
+
+copyCodeBtn.addEventListener('click', function () {
+  if (!currentAccessCode) return;
+  navigator.clipboard.writeText(currentAccessCode).then(function () {
+    copyCodeBtn.textContent = '\u2713';
+    setTimeout(function () { copyCodeBtn.textContent = '\u2398'; }, 1500);
+  });
 });
 
-async function deleteCode(accessCode) {
-  try {
-    await apiCall('DELETE', '/api/access-codes', { accessCode: accessCode });
-    accessCodes = accessCodes.filter(function (c) { return c.accessCode !== accessCode; });
-    renderAccessCodes();
-  } catch (err) {
-    codesError.textContent = err.message;
-    codesError.hidden = false;
+regenerateCodeBtn.addEventListener('click', function () {
+  if (confirm('Generate a new access code?\n\nThe current code will stop working. You will need to share the new code with your pilots.')) {
+    regenerateCode(false);
   }
-}
+});
 
 // ── FOLDER READING ───────────────────────────────────────────────
 

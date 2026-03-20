@@ -676,70 +676,50 @@ button[type="submit"]:disabled {
 
 /* ── ACCESS CODES ─────────────────────────────────────────────── */
 
-.codes-add {
+.access-code-display {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.access-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.access-code-value {
+  font-size: 24px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+}
+
+.access-code-actions {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle);
 }
 
-.add-code-form {
-  display: flex;
-  gap: 8px;
-}
-
-.add-code-form input[type="text"] {
-  flex: 1;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-}
-
-.btn-add-code {
-  width: auto;
-  margin-top: 0;
+.btn-regenerate {
+  width: 100%;
   padding: 8px 16px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   font-family: var(--font-mono);
-  color: var(--text-inverse);
-  background: var(--blue);
-  border: none;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
-.btn-add-code:hover {
-  background: #4d94f8;
-}
-
-.code-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.code-row:last-child {
-  border-bottom: none;
-}
-
-.code-value {
-  font-size: 15px;
-  font-weight: 600;
-  font-family: var(--font-mono);
+.btn-regenerate:hover {
   color: var(--text-primary);
-  letter-spacing: 0.04em;
-}
-
-.code-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+  border-color: var(--text-muted);
 }
 
 .btn-copy {
