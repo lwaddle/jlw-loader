@@ -263,19 +263,54 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
     return errorResponse('Unauthorized', 401);
   }
 
-  let manifest: Record<string, unknown>;
+  let incoming: Record<string, unknown>;
   try {
-    manifest = await request.json();
+    incoming = await request.json();
   } catch {
     return errorResponse('Invalid JSON body', 400);
   }
 
-  // Force orgId from JWT (security). Use client-provided orgName (Clerk JS SDK
-  // has the display name; the JWT only has the slug in v5 abbreviated claims).
-  manifest.orgId = admin.orgId;
-  if (!manifest.orgName) {
-    manifest.orgName = admin.orgName;
+  // Force orgId from JWT (security)
+  incoming.orgId = admin.orgId;
+  if (!incoming.orgName) {
+    incoming.orgName = admin.orgName;
   }
+
+  // Read existing manifest to preserve history
+  const existingObj = await env.UPDATES_BUCKET.get(`orgs/${admin.orgId}/manifest.json`);
+  let history: Array<{
+    packageFilename: string;
+    packageSizeBytes: number;
+    packageChecksum: string;
+    uploadedAt: string;
+  }> = [];
+
+  if (existingObj) {
+    const existing = await existingObj.json<Record<string, unknown>>();
+
+    // Push current active package into history (if one exists)
+    if (existing.uploadedAt && existing.packageFilename) {
+      history = Array.isArray(existing.history) ? [...existing.history] : [];
+      history.unshift({
+        packageFilename: existing.packageFilename as string,
+        packageSizeBytes: existing.packageSizeBytes as number,
+        packageChecksum: existing.packageChecksum as string,
+        uploadedAt: existing.uploadedAt as string,
+      });
+
+      // Trim to 5 and delete evicted ZIPs
+      while (history.length > 5) {
+        const evicted = history.pop()!;
+        try {
+          await env.UPDATES_BUCKET.delete(`orgs/${admin.orgId}/${evicted.packageFilename}`);
+        } catch (err) {
+          console.error('Failed to delete evicted ZIP:', evicted.packageFilename, err);
+        }
+      }
+    }
+  }
+
+  const manifest = { ...incoming, history };
 
   await env.UPDATES_BUCKET.put(
     `orgs/${admin.orgId}/manifest.json`,
