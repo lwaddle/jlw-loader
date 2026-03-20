@@ -223,7 +223,7 @@ async function handleUploadUrl(request: Request, env: Env): Promise<Response> {
     return errorResponse('Unauthorized', 401);
   }
 
-  let body: { filename?: string };
+  let body: { filename?: string; fileSizeBytes?: number };
   try {
     body = await request.json();
   } catch {
@@ -241,6 +241,17 @@ async function handleUploadUrl(request: Request, env: Env): Promise<Response> {
     body.filename.includes('..')
   ) {
     return errorResponse('Invalid filename', 400);
+  }
+
+  // Enforce maximum upload size (500 MB)
+  const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
+  if (body.fileSizeBytes !== undefined) {
+    if (typeof body.fileSizeBytes !== 'number' || body.fileSizeBytes <= 0) {
+      return errorResponse('fileSizeBytes must be a positive number', 400);
+    }
+    if (body.fileSizeBytes > MAX_UPLOAD_BYTES) {
+      return errorResponse('File exceeds maximum upload size of 500 MB', 413);
+    }
   }
 
   const key = `orgs/${admin.orgId}/${body.filename}`;

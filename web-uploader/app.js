@@ -582,7 +582,7 @@ uploadForm.addEventListener('submit', async (e) => {
     // Step 2: Get presigned upload URL
     setProgress('uploading', 'Requesting upload URL...', 0);
     const uploadFilename = generatePackageFilename();
-    const urlResp = await apiCall('POST', '/api/upload-url', { filename: uploadFilename });
+    const urlResp = await apiCall('POST', '/api/upload-url', { filename: uploadFilename, fileSizeBytes: selectedFile.size });
 
     // Step 3: Upload ZIP to R2
     setProgress('uploading', 'Uploading to R2...', 0);
