@@ -118,7 +118,19 @@ function showSignIn() {
 
   loginView.hidden = false;
   dashboardView.hidden = true;
-  clerk.mountSignIn(document.getElementById('clerk-sign-in'));
+  clerk.mountSignIn(document.getElementById('clerk-sign-in'), {
+    appearance: {
+      variables: {
+        colorBackground: '#141920',
+        colorInputBackground: '#0d1017',
+        colorText: '#e8ecf4',
+        colorTextSecondary: '#8892a6',
+        colorPrimary: '#3b82f6',
+        colorInputText: '#e8ecf4',
+        borderRadius: '8px',
+      },
+    },
+  });
 }
 
 async function loadDashboard() {
