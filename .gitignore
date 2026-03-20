@@ -3,6 +3,7 @@ dist/
 .wrangler/
 .dev.vars
 .DS_Store
+config.local.js
 *.log
 EXAMPLE_DATA_LOAD/
 .claude/
