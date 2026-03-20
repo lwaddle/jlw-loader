@@ -400,7 +400,7 @@ async function handleRevert(request: Request, env: Env): Promise<Response> {
     packageFilename: selected.packageFilename,
     packageSizeBytes: selected.packageSizeBytes,
     packageChecksum: selected.packageChecksum,
-    uploadedAt: selected.uploadedAt,
+    uploadedAt: new Date().toISOString(),
     history,
   };
 
