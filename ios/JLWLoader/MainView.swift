@@ -35,12 +35,27 @@ struct MainView: View {
                 DocumentPickerView(
                     onPick: { url in
                         appState.showDocumentPicker = false
-                        Task { await appState.transferToUSB(driveURL: url) }
+                        appState.confirmErase(driveURL: url)
                     },
                     onCancel: {
                         appState.showDocumentPicker = false
                     }
                 )
+            }
+            .alert("Erase USB Drive?", isPresented: $appState.showEraseConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    appState.cancelErase()
+                }
+                Button("Erase & Transfer", role: .destructive) {
+                    if let url = appState.pendingDriveURL {
+                        appState.pendingDriveURL = nil
+                        Task { await appState.transferToUSB(driveURL: url) }
+                    }
+                }
+            } message: {
+                if let url = appState.pendingDriveURL {
+                    Text("All data on \(appState.driveName(for: url)) will be permanently erased and replaced with the database update.")
+                }
             }
         }
     }
