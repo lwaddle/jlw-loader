@@ -5,6 +5,7 @@ struct AccessCodeView: View {
     @State private var accessCode = ""
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 24) {
@@ -20,23 +21,31 @@ struct AccessCodeView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 12) {
-                TextField("Access Code", text: $accessCode)
-                    .textFieldStyle(.plain)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.title3.monospaced())
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 12)
-                    .background(Color(.secondarySystemBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(.systemGray3), lineWidth: 1.5)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal)
-                    .disabled(isLoading)
-                    .onSubmit { submit() }
+                ZStack {
+                    if accessCode.isEmpty && !isFieldFocused {
+                        Text("Access Code")
+                            .font(.title3.monospaced())
+                            .foregroundColor(Color(.systemGray))
+                    }
+                    TextField("", text: $accessCode)
+                        .textFieldStyle(.plain)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.title3.monospaced())
+                        .multilineTextAlignment(.center)
+                        .focused($isFieldFocused)
+                }
+                .padding(.vertical, 14)
+                .padding(.horizontal, 12)
+                .background(Color(.secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(.systemGray3), lineWidth: 1.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal)
+                .disabled(isLoading)
+                .onSubmit { submit() }
 
                 if let error = errorMessage {
                     Text(error)
