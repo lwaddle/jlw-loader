@@ -2,6 +2,7 @@ import Foundation
 
 struct Manifest: Codable {
     let orgId: String
+    let orgName: String?
     let packageFilename: String?
     let packageSizeBytes: Int?
     let packageChecksum: String?
@@ -14,6 +15,7 @@ struct Manifest: Codable {
 
     init(
         orgId: String,
+        orgName: String? = nil,
         packageFilename: String? = nil,
         packageSizeBytes: Int? = nil,
         packageChecksum: String? = nil,
@@ -22,6 +24,7 @@ struct Manifest: Codable {
         version: String? = nil
     ) {
         self.orgId = orgId
+        self.orgName = orgName
         self.packageFilename = packageFilename
         self.packageSizeBytes = packageSizeBytes
         self.packageChecksum = packageChecksum

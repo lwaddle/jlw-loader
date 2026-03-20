@@ -140,6 +140,14 @@ class AppState: ObservableObject {
         do {
             let fetched = try await apiClient.fetchManifest(apiKey: cred.apiKey)
             manifest = fetched
+
+            // Refresh credential orgName from manifest if server has a better name
+            if let serverName = fetched.orgName, serverName != cred.orgName {
+                if let idx = credentials.firstIndex(where: { $0.orgId == cred.orgId }) {
+                    credentials[idx] = OrgCredential(orgId: cred.orgId, orgName: serverName, apiKey: cred.apiKey)
+                    try? KeychainService.saveAllCredentials(credentials)
+                }
+            }
             UserDefaults.standard.set(
                 ISO8601DateFormatter().string(from: Date()),
                 forKey: Constants.UserDefaultsKeys.lastCheckedAt

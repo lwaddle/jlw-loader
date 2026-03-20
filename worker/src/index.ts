@@ -270,8 +270,9 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
     return errorResponse('Invalid JSON body', 400);
   }
 
-  // Force orgId to the admin's org — never trust client-supplied orgId
+  // Force orgId/orgName to the admin's org — never trust client-supplied values
   manifest.orgId = admin.orgId;
+  manifest.orgName = admin.orgName;
 
   await env.UPDATES_BUCKET.put(
     `orgs/${admin.orgId}/manifest.json`,
