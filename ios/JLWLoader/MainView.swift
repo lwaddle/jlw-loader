@@ -113,10 +113,6 @@ struct MainView: View {
 
             if let manifest = appState.manifest {
                 VStack(spacing: 12) {
-                    if let filename = manifest.packageFilename {
-                        Text(filename)
-                            .font(.body.monospaced())
-                    }
                     if let uploadedAt = manifest.uploadedAt {
                         Text("Uploaded \(appState.formattedRelativeDate(uploadedAt))")
                             .foregroundColor(.secondary)
