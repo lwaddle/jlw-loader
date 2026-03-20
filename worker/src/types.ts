@@ -42,12 +42,24 @@ export interface AccessCodeEntry {
 }
 
 /**
- * manifest.json stored in R2 at orgs/{orgId}/manifest.json
+ * A previous package retained in manifest history.
  */
-export interface ManifestData {
-  orgId: string;
+export interface HistoryEntry {
   packageFilename: string;
   packageSizeBytes: number;
   packageChecksum: string;
   uploadedAt: string;
+}
+
+/**
+ * manifest.json stored in R2 at orgs/{orgId}/manifest.json
+ */
+export interface ManifestData {
+  orgId: string;
+  orgName?: string;
+  packageFilename: string;
+  packageSizeBytes: number;
+  packageChecksum: string;
+  uploadedAt: string;
+  history?: HistoryEntry[];
 }
