@@ -268,7 +268,9 @@ async function regenerateCode(silent) {
   }
 
   try {
-    var resp = await apiCall('POST', '/api/access-codes/regenerate');
+    var resp = await apiCall('POST', '/api/access-codes/regenerate', {
+      orgName: clerk.organization && clerk.organization.name,
+    });
     currentAccessCode = resp.accessCode;
     showAccessCode(currentAccessCode);
   } catch (err) {
@@ -506,6 +508,7 @@ uploadForm.addEventListener('submit', async (e) => {
       packageSizeBytes: selectedFile.size,
       packageChecksum: 'sha256:' + checksum,
       uploadedAt: new Date().toISOString(),
+      orgName: clerk.organization && clerk.organization.name,
     });
 
     // Done — refresh manifest and show success

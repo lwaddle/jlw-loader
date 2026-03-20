@@ -270,9 +270,12 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
     return errorResponse('Invalid JSON body', 400);
   }
 
-  // Force orgId/orgName to the admin's org — never trust client-supplied values
+  // Force orgId from JWT (security). Use client-provided orgName (Clerk JS SDK
+  // has the display name; the JWT only has the slug in v5 abbreviated claims).
   manifest.orgId = admin.orgId;
-  manifest.orgName = admin.orgName;
+  if (!manifest.orgName) {
+    manifest.orgName = admin.orgName;
+  }
 
   await env.UPDATES_BUCKET.put(
     `orgs/${admin.orgId}/manifest.json`,
@@ -381,8 +384,13 @@ async function handleRegenerateAccessCode(request: Request, env: Env): Promise<R
     return errorResponse('Unauthorized', 401);
   }
 
+  // Clerk v5 abbreviated JWT claims don't include org name — read from body
+  let body: { orgName?: string } = {};
+  try { body = await request.json(); } catch { /* no body is fine */ }
+  const orgName = body.orgName || admin.orgName;
+
   try {
-    const result = await regenerateAccessCode(env.ACCESS_CODES_KV, admin.orgId, admin.orgName);
+    const result = await regenerateAccessCode(env.ACCESS_CODES_KV, admin.orgId, orgName);
     return json({ accessCode: result.accessCode });
   } catch (err) {
     if (err instanceof Error && err.message === 'GENERATION_FAILED') {
