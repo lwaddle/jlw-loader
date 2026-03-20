@@ -100,6 +100,9 @@ export default {
         case '/api/upload-url':
           if (request.method === 'POST') { response = await handleUploadUrl(request, env); break; }
           response = errorResponse('Not found', 404); break;
+        case '/api/revert':
+          if (request.method === 'POST') { response = await handleRevert(request, env); break; }
+          response = errorResponse('Not found', 404); break;
         case '/api/access-codes':
           if (request.method === 'GET') { response = await handleListAccessCodes(request, env); break; }
           if (request.method === 'POST') { response = await handleCreateAccessCode(request, env); break; }
@@ -315,6 +318,92 @@ async function handlePatchManifest(request: Request, env: Env): Promise<Response
   await env.UPDATES_BUCKET.put(
     `orgs/${admin.orgId}/manifest.json`,
     JSON.stringify(manifest, null, 2),
+    { httpMetadata: { contentType: 'application/json' } },
+  );
+
+  return json({ success: true, orgId: admin.orgId });
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/revert — revert to a previous package (admin auth only)
+//
+// Body: { "packageFilename": "update-2026-03-05-100000.zip" }
+// Swaps the selected history entry into the active slot.
+// ---------------------------------------------------------------------------
+
+async function handleRevert(request: Request, env: Env): Promise<Response> {
+  const admin = await authenticateAdmin(request, env);
+  if (!admin) {
+    return errorResponse('Unauthorized', 401);
+  }
+
+  let body: { packageFilename?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse('Invalid JSON body', 400);
+  }
+
+  if (!body.packageFilename) {
+    return errorResponse('packageFilename is required', 400);
+  }
+
+  // Read current manifest
+  const manifestObj = await env.UPDATES_BUCKET.get(`orgs/${admin.orgId}/manifest.json`);
+  if (!manifestObj) {
+    return errorResponse('No manifest found', 404);
+  }
+
+  const manifest = await manifestObj.json<Record<string, unknown>>();
+  const history: Array<{
+    packageFilename: string;
+    packageSizeBytes: number;
+    packageChecksum: string;
+    uploadedAt: string;
+  }> = Array.isArray(manifest.history) ? [...(manifest.history as any[])] : [];
+
+  // Find the requested entry in history
+  const idx = history.findIndex(h => h.packageFilename === body.packageFilename);
+  if (idx === -1) {
+    return errorResponse('Package not found in history', 404);
+  }
+
+  // Swap: push current active into history, promote selected entry
+  const selected = history.splice(idx, 1)[0];
+
+  if (manifest.uploadedAt && manifest.packageFilename) {
+    history.unshift({
+      packageFilename: manifest.packageFilename as string,
+      packageSizeBytes: manifest.packageSizeBytes as number,
+      packageChecksum: manifest.packageChecksum as string,
+      uploadedAt: manifest.uploadedAt as string,
+    });
+  }
+
+  // Trim to 5 and delete evicted ZIPs
+  while (history.length > 5) {
+    const evicted = history.pop()!;
+    try {
+      await env.UPDATES_BUCKET.delete(`orgs/${admin.orgId}/${evicted.packageFilename}`);
+    } catch (err) {
+      console.error('Failed to delete evicted ZIP:', evicted.packageFilename, err);
+    }
+  }
+
+  // Build updated manifest
+  const updated = {
+    orgId: admin.orgId,
+    orgName: manifest.orgName || admin.orgName,
+    packageFilename: selected.packageFilename,
+    packageSizeBytes: selected.packageSizeBytes,
+    packageChecksum: selected.packageChecksum,
+    uploadedAt: selected.uploadedAt,
+    history,
+  };
+
+  await env.UPDATES_BUCKET.put(
+    `orgs/${admin.orgId}/manifest.json`,
+    JSON.stringify(updated, null, 2),
     { httpMetadata: { contentType: 'application/json' } },
   );
 
