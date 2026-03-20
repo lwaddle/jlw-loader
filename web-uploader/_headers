@@ -4,7 +4,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://*.clerk.accounts.dev; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.cloudflarestorage.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://*.clerk.accounts.dev; img-src 'self' data: https://img.clerk.com;
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://*.clerk.accounts.dev https://static.cloudflareinsights.com; connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.cloudflarestorage.com https://cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://*.clerk.accounts.dev; img-src 'self' data: https://img.clerk.com;
 
 /index.html
   Cache-Control: no-cache
