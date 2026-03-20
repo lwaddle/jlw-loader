@@ -20,6 +20,7 @@ import {
   listAccessCodes,
   createAccessCode,
   deleteAccessCode,
+  regenerateAccessCode,
 } from './auth';
 import { verifyClerkToken } from './clerk';
 import { createPresignedGetUrl, createPresignedPutUrl } from './presign';
@@ -103,6 +104,9 @@ export default {
           if (request.method === 'GET') { response = await handleListAccessCodes(request, env); break; }
           if (request.method === 'POST') { response = await handleCreateAccessCode(request, env); break; }
           if (request.method === 'DELETE') { response = await handleDeleteAccessCode(request, env); break; }
+          response = errorResponse('Not found', 404); break;
+        case '/api/access-codes/regenerate':
+          if (request.method === 'POST') { response = await handleRegenerateAccessCode(request, env); break; }
           response = errorResponse('Not found', 404); break;
         default:
           response = errorResponse('Not found', 404);
@@ -361,6 +365,27 @@ async function handleDeleteAccessCode(request: Request, env: Env): Promise<Respo
   } catch (err) {
     if (err instanceof Error && err.message === 'ACCESS_CODE_NOT_FOUND') {
       return errorResponse('Access code not found', 404);
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/access-codes/regenerate — regenerate access code for admin's org
+// ---------------------------------------------------------------------------
+
+async function handleRegenerateAccessCode(request: Request, env: Env): Promise<Response> {
+  const admin = await authenticateAdmin(request, env);
+  if (!admin) {
+    return errorResponse('Unauthorized', 401);
+  }
+
+  try {
+    const result = await regenerateAccessCode(env.ACCESS_CODES_KV, admin.orgId, admin.orgName);
+    return json({ accessCode: result.accessCode });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'GENERATION_FAILED') {
+      return errorResponse('Failed to generate unique access code. Please try again.', 500);
     }
     throw err;
   }

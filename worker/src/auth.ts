@@ -39,6 +39,17 @@ export function generateApiKey(): string {
   return 'key_' + hex;
 }
 
+const ACCESS_CODE_CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+export function generateAccessCodeString(): string {
+  const bytes = new Uint8Array(7);
+  crypto.getRandomValues(bytes);
+  const chars = Array.from(bytes).map(
+    (b) => ACCESS_CODE_CHARSET[b % ACCESS_CODE_CHARSET.length]
+  );
+  return chars.slice(0, 3).join('') + '-' + chars.slice(3).join('');
+}
+
 export async function listAccessCodes(
   kv: KVNamespace,
   orgId: string,
@@ -93,6 +104,36 @@ export async function deleteAccessCode(
   const codes = await listAccessCodes(kv, orgId);
   const updated = codes.filter((c) => c !== accessCode);
   await saveOrgIndex(kv, orgId, updated);
+}
+
+export async function regenerateAccessCode(
+  kv: KVNamespace,
+  orgId: string,
+  orgName?: string,
+): Promise<{ accessCode: string; apiKey: string }> {
+  // Delete all existing codes for this org
+  const existingCodes = await listAccessCodes(kv, orgId);
+  for (const code of existingCodes) {
+    await kv.delete(`code:${code}`);
+  }
+  await saveOrgIndex(kv, orgId, []);
+
+  // Generate a new unique code (retry on collision)
+  let accessCode: string;
+  let attempts = 0;
+  do {
+    accessCode = generateAccessCodeString();
+    const collision = await kv.get(`code:${accessCode}`);
+    if (collision === null) break;
+    attempts++;
+  } while (attempts < 10);
+
+  if (attempts >= 10) {
+    throw new Error('GENERATION_FAILED');
+  }
+
+  const apiKey = await createAccessCode(kv, orgId, accessCode, orgName);
+  return { accessCode, apiKey };
 }
 
 // ---------------------------------------------------------------------------
