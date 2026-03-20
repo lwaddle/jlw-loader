@@ -20,6 +20,8 @@ class AppState: ObservableObject {
     @Published var showDocumentPicker: Bool = false
     @Published var credentials: [OrgCredential] = []
     @Published var activeOrgId: String?
+    @Published var showEraseConfirmation: Bool = false
+    var pendingDriveURL: URL?
 
     private let apiClient: APIClient
     private let downloadManager: DownloadManager
@@ -377,6 +379,21 @@ class AppState: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    /// Extract the volume name from a drive URL for display in alerts.
+    func driveName(for url: URL) -> String {
+        let values = try? url.resourceValues(forKeys: [.volumeNameKey])
+        return values?.volumeName ?? "the selected USB drive"
+    }
+
+    func confirmErase(driveURL: URL) {
+        pendingDriveURL = driveURL
+        showEraseConfirmation = true
+    }
+
+    func cancelErase() {
+        pendingDriveURL = nil
+    }
 
     var lastCheckedAt: String? {
         UserDefaults.standard.string(forKey: Constants.UserDefaultsKeys.lastCheckedAt)
