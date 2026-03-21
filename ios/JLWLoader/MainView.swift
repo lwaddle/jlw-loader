@@ -146,11 +146,9 @@ struct MainView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            if let manifest = appState.manifest {
-                Text("Downloading \(manifest.packageFilename ?? "update")...")
-                    .font(.title3)
-                    .fontWeight(.medium)
-            }
+            Text("Downloading...")
+                .font(.title3)
+                .fontWeight(.medium)
 
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
